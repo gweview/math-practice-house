@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/xiaoyang111222/cn-math-taxonomy",
+  "revision": "1e9f3d278b90e5a5c36e832c340e262feff0ca78",
+  "license": "CC-BY-NC-4.0",
+  "teacherReviewed": false,
+  "selection": "topic.id startsWith cnm_ AND grade IN (1,2,3); induced prerequisite subgraph; questions matching selected topic IDs",
+  "modifications": "仅抽取一年级至三年级数学数据，新增参数化练习、界面与练习单设计；保留上游原题，标注来源。",
+  "counts": {"topics":108,"dependencies":153,"questions":432},
+  "notice": "上游是AI生成初稿，未经教师审核；先修关系与题目需人工复核。数据保留署名、非商业许可，商业使用需另行取得授权。"
+}

@@ -1,0 +1,920 @@
+[
+  {
+    "topicId": "cnm_p002",
+    "prerequisiteId": "cnm_p001",
+    "strength": "hard",
+    "reason": "学习「5以内数的大小」需要先掌握「1到5各数的认识」。"
+  },
+  {
+    "topicId": "cnm_p003",
+    "prerequisiteId": "cnm_p001",
+    "strength": "hard",
+    "reason": "学习「几和第几」需要先掌握「1到5各数的认识」。"
+  },
+  {
+    "topicId": "cnm_p004",
+    "prerequisiteId": "cnm_p001",
+    "strength": "hard",
+    "reason": "学习「5以内数的分与合」需要先掌握「1到5各数的认识」。"
+  },
+  {
+    "topicId": "cnm_p005",
+    "prerequisiteId": "cnm_p001",
+    "strength": "hard",
+    "reason": "学习「0的认识」需要先掌握「1到5各数的认识」。"
+  },
+  {
+    "topicId": "cnm_p006",
+    "prerequisiteId": "cnm_p004",
+    "strength": "hard",
+    "reason": "学习「5以内的加法」需要先掌握「5以内数的分与合」。"
+  },
+  {
+    "topicId": "cnm_p007",
+    "prerequisiteId": "cnm_p006",
+    "strength": "hard",
+    "reason": "学习「5以内的减法」需要先掌握「5以内的加法」。"
+  },
+  {
+    "topicId": "cnm_p008",
+    "prerequisiteId": "cnm_p001",
+    "strength": "hard",
+    "reason": "学习「6到10各数的认识」需要先掌握「1到5各数的认识」。"
+  },
+  {
+    "topicId": "cnm_p009",
+    "prerequisiteId": "cnm_p008",
+    "strength": "hard",
+    "reason": "学习「10以内数的比较」需要先掌握「6到10各数的认识」。"
+  },
+  {
+    "topicId": "cnm_p009",
+    "prerequisiteId": "cnm_p002",
+    "strength": "hard",
+    "reason": "学习「10以内数的比较」需要先掌握「5以内数的大小」。"
+  },
+  {
+    "topicId": "cnm_p010",
+    "prerequisiteId": "cnm_p006",
+    "strength": "hard",
+    "reason": "学习「10以内的加法」需要先掌握「5以内的加法」。"
+  },
+  {
+    "topicId": "cnm_p010",
+    "prerequisiteId": "cnm_p008",
+    "strength": "hard",
+    "reason": "学习「10以内的加法」需要先掌握「6到10各数的认识」。"
+  },
+  {
+    "topicId": "cnm_p011",
+    "prerequisiteId": "cnm_p007",
+    "strength": "hard",
+    "reason": "学习「10以内的减法」需要先掌握「5以内的减法」。"
+  },
+  {
+    "topicId": "cnm_p011",
+    "prerequisiteId": "cnm_p010",
+    "strength": "hard",
+    "reason": "学习「10以内的减法」需要先掌握「10以内的加法」。"
+  },
+  {
+    "topicId": "cnm_p012",
+    "prerequisiteId": "cnm_p011",
+    "strength": "hard",
+    "reason": "学习「连加和连减」需要先掌握「10以内的减法」。"
+  },
+  {
+    "topicId": "cnm_p013",
+    "prerequisiteId": "cnm_p012",
+    "strength": "hard",
+    "reason": "学习「10以内加减混合」需要先掌握「连加和连减」。"
+  },
+  {
+    "topicId": "cnm_p014",
+    "prerequisiteId": "cnm_p001",
+    "strength": "hard",
+    "reason": "学习「认识长方体、正方体、圆柱和球」需要先掌握「1到5各数的认识」。"
+  },
+  {
+    "topicId": "cnm_p015",
+    "prerequisiteId": "cnm_p001",
+    "strength": "hard",
+    "reason": "学习「上下前后左右」需要先掌握「1到5各数的认识」。"
+  },
+  {
+    "topicId": "cnm_p016",
+    "prerequisiteId": "cnm_p008",
+    "strength": "hard",
+    "reason": "学习「11到20各数的认识」需要先掌握「6到10各数的认识」。"
+  },
+  {
+    "topicId": "cnm_p017",
+    "prerequisiteId": "cnm_p016",
+    "strength": "hard",
+    "reason": "学习「十位和个位」需要先掌握「11到20各数的认识」。"
+  },
+  {
+    "topicId": "cnm_p018",
+    "prerequisiteId": "cnm_p017",
+    "strength": "hard",
+    "reason": "学习「20以内不进位加法」需要先掌握「十位和个位」。"
+  },
+  {
+    "topicId": "cnm_p018",
+    "prerequisiteId": "cnm_p010",
+    "strength": "hard",
+    "reason": "学习「20以内不进位加法」需要先掌握「10以内的加法」。"
+  },
+  {
+    "topicId": "cnm_p019",
+    "prerequisiteId": "cnm_p010",
+    "strength": "hard",
+    "reason": "学习「凑十法」需要先掌握「10以内的加法」。"
+  },
+  {
+    "topicId": "cnm_p020",
+    "prerequisiteId": "cnm_p019",
+    "strength": "hard",
+    "reason": "学习「9加几」需要先掌握「凑十法」。"
+  },
+  {
+    "topicId": "cnm_p021",
+    "prerequisiteId": "cnm_p020",
+    "strength": "hard",
+    "reason": "学习「8、7、6加几」需要先掌握「9加几」。"
+  },
+  {
+    "topicId": "cnm_p022",
+    "prerequisiteId": "cnm_p008",
+    "strength": "hard",
+    "reason": "学习「用数介绍和简单分类」需要先掌握「6到10各数的认识」。"
+  },
+  {
+    "topicId": "cnm_p023",
+    "prerequisiteId": "cnm_p014",
+    "strength": "hard",
+    "reason": "学习「认识长方形、正方形、三角形和圆」需要先掌握「认识长方体、正方体、圆柱和球」。"
+  },
+  {
+    "topicId": "cnm_p024",
+    "prerequisiteId": "cnm_p023",
+    "strength": "hard",
+    "reason": "学习「平面图形的拼组」需要先掌握「认识长方形、正方形、三角形和圆」。"
+  },
+  {
+    "topicId": "cnm_p025",
+    "prerequisiteId": "cnm_p020",
+    "strength": "hard",
+    "reason": "学习「十几减9」需要先掌握「9加几」。"
+  },
+  {
+    "topicId": "cnm_p026",
+    "prerequisiteId": "cnm_p025",
+    "strength": "hard",
+    "reason": "学习「十几减8、7、6」需要先掌握「十几减9」。"
+  },
+  {
+    "topicId": "cnm_p026",
+    "prerequisiteId": "cnm_p021",
+    "strength": "hard",
+    "reason": "学习「十几减8、7、6」需要先掌握「8、7、6加几」。"
+  },
+  {
+    "topicId": "cnm_p027",
+    "prerequisiteId": "cnm_p026",
+    "strength": "hard",
+    "reason": "学习「十几减5、4、3、2」需要先掌握「十几减8、7、6」。"
+  },
+  {
+    "topicId": "cnm_p028",
+    "prerequisiteId": "cnm_p016",
+    "strength": "hard",
+    "reason": "学习「100以内数的认识」需要先掌握「11到20各数的认识」。"
+  },
+  {
+    "topicId": "cnm_p029",
+    "prerequisiteId": "cnm_p028",
+    "strength": "hard",
+    "reason": "学习「100以内数的大小」需要先掌握「100以内数的认识」。"
+  },
+  {
+    "topicId": "cnm_p029",
+    "prerequisiteId": "cnm_p009",
+    "strength": "hard",
+    "reason": "学习「100以内数的大小」需要先掌握「10以内数的比较」。"
+  },
+  {
+    "topicId": "cnm_p030",
+    "prerequisiteId": "cnm_p028",
+    "strength": "hard",
+    "reason": "学习「整十数的加减」需要先掌握「100以内数的认识」。"
+  },
+  {
+    "topicId": "cnm_p030",
+    "prerequisiteId": "cnm_p010",
+    "strength": "hard",
+    "reason": "学习「整十数的加减」需要先掌握「10以内的加法」。"
+  },
+  {
+    "topicId": "cnm_p031",
+    "prerequisiteId": "cnm_p030",
+    "strength": "hard",
+    "reason": "学习「100以内口算加法」需要先掌握「整十数的加减」。"
+  },
+  {
+    "topicId": "cnm_p031",
+    "prerequisiteId": "cnm_p021",
+    "strength": "hard",
+    "reason": "学习「100以内口算加法」需要先掌握「8、7、6加几」。"
+  },
+  {
+    "topicId": "cnm_p032",
+    "prerequisiteId": "cnm_p031",
+    "strength": "hard",
+    "reason": "学习「100以内口算减法」需要先掌握「100以内口算加法」。"
+  },
+  {
+    "topicId": "cnm_p032",
+    "prerequisiteId": "cnm_p027",
+    "strength": "hard",
+    "reason": "学习「100以内口算减法」需要先掌握「十几减5、4、3、2」。"
+  },
+  {
+    "topicId": "cnm_p033",
+    "prerequisiteId": "cnm_p031",
+    "strength": "hard",
+    "reason": "学习「100以内笔算加法」需要先掌握「100以内口算加法」。"
+  },
+  {
+    "topicId": "cnm_p034",
+    "prerequisiteId": "cnm_p032",
+    "strength": "hard",
+    "reason": "学习「100以内笔算减法」需要先掌握「100以内口算减法」。"
+  },
+  {
+    "topicId": "cnm_p034",
+    "prerequisiteId": "cnm_p033",
+    "strength": "hard",
+    "reason": "学习「100以内笔算减法」需要先掌握「100以内笔算加法」。"
+  },
+  {
+    "topicId": "cnm_p035",
+    "prerequisiteId": "cnm_p034",
+    "strength": "hard",
+    "reason": "学习「部分与总数」需要先掌握「100以内笔算减法」。"
+  },
+  {
+    "topicId": "cnm_p036",
+    "prerequisiteId": "cnm_p030",
+    "strength": "hard",
+    "reason": "学习「认识人民币」需要先掌握「整十数的加减」。"
+  },
+  {
+    "topicId": "cnm_p037",
+    "prerequisiteId": "cnm_p022",
+    "strength": "hard",
+    "reason": "学习「分类与整理」需要先掌握「用数介绍和简单分类」。"
+  },
+  {
+    "topicId": "cnm_p037",
+    "prerequisiteId": "cnm_p029",
+    "strength": "hard",
+    "reason": "学习「分类与整理」需要先掌握「100以内数的大小」。"
+  },
+  {
+    "topicId": "cnm_p038",
+    "prerequisiteId": "cnm_p012",
+    "strength": "hard",
+    "reason": "学习「乘法的意义」需要先掌握「连加和连减」。"
+  },
+  {
+    "topicId": "cnm_p039",
+    "prerequisiteId": "cnm_p038",
+    "strength": "hard",
+    "reason": "学习「2到6的乘法口诀」需要先掌握「乘法的意义」。"
+  },
+  {
+    "topicId": "cnm_p040",
+    "prerequisiteId": "cnm_p008",
+    "strength": "hard",
+    "reason": "学习「认识厘米」需要先掌握「6到10各数的认识」。"
+  },
+  {
+    "topicId": "cnm_p041",
+    "prerequisiteId": "cnm_p040",
+    "strength": "hard",
+    "reason": "学习「认识米」需要先掌握「认识厘米」。"
+  },
+  {
+    "topicId": "cnm_p042",
+    "prerequisiteId": "cnm_p039",
+    "strength": "hard",
+    "reason": "学习「7、8、9的乘法口诀」需要先掌握「2到6的乘法口诀」。"
+  },
+  {
+    "topicId": "cnm_p043",
+    "prerequisiteId": "cnm_p038",
+    "strength": "hard",
+    "reason": "学习「除法的意义」需要先掌握「乘法的意义」。"
+  },
+  {
+    "topicId": "cnm_p044",
+    "prerequisiteId": "cnm_p042",
+    "strength": "hard",
+    "reason": "学习「用7、8、9的口诀求商」需要先掌握「7、8、9的乘法口诀」。"
+  },
+  {
+    "topicId": "cnm_p044",
+    "prerequisiteId": "cnm_p043",
+    "strength": "hard",
+    "reason": "学习「用7、8、9的口诀求商」需要先掌握「除法的意义」。"
+  },
+  {
+    "topicId": "cnm_p045",
+    "prerequisiteId": "cnm_p041",
+    "strength": "hard",
+    "reason": "学习「用身体上的长度估测」需要先掌握「认识米」。"
+  },
+  {
+    "topicId": "cnm_p046",
+    "prerequisiteId": "cnm_p039",
+    "strength": "hard",
+    "reason": "学习「用1到6的口诀求商」需要先掌握「2到6的乘法口诀」。"
+  },
+  {
+    "topicId": "cnm_p046",
+    "prerequisiteId": "cnm_p043",
+    "strength": "hard",
+    "reason": "学习「用1到6的口诀求商」需要先掌握「除法的意义」。"
+  },
+  {
+    "topicId": "cnm_p047",
+    "prerequisiteId": "cnm_p046",
+    "strength": "hard",
+    "reason": "学习「用乘法验算除法」需要先掌握「用1到6的口诀求商」。"
+  },
+  {
+    "topicId": "cnm_p047",
+    "prerequisiteId": "cnm_p044",
+    "strength": "hard",
+    "reason": "学习「用乘法验算除法」需要先掌握「用7、8、9的口诀求商」。"
+  },
+  {
+    "topicId": "cnm_p048",
+    "prerequisiteId": "cnm_p039",
+    "strength": "hard",
+    "reason": "学习「表内乘法解决实际问题」需要先掌握「2到6的乘法口诀」。"
+  },
+  {
+    "topicId": "cnm_p049",
+    "prerequisiteId": "cnm_p015",
+    "strength": "hard",
+    "reason": "学习「东、南、西、北」需要先掌握「上下前后左右」。"
+  },
+  {
+    "topicId": "cnm_p050",
+    "prerequisiteId": "cnm_p046",
+    "strength": "hard",
+    "reason": "学习「有余数除法的意义」需要先掌握「用1到6的口诀求商」。"
+  },
+  {
+    "topicId": "cnm_p051",
+    "prerequisiteId": "cnm_p050",
+    "strength": "hard",
+    "reason": "学习「用口诀求商和余数」需要先掌握「有余数除法的意义」。"
+  },
+  {
+    "topicId": "cnm_p052",
+    "prerequisiteId": "cnm_p051",
+    "strength": "hard",
+    "reason": "学习「有余数除法的应用」需要先掌握「用口诀求商和余数」。"
+  },
+  {
+    "topicId": "cnm_p053",
+    "prerequisiteId": "cnm_p028",
+    "strength": "hard",
+    "reason": "学习「万以内数的认识」需要先掌握「100以内数的认识」。"
+  },
+  {
+    "topicId": "cnm_p054",
+    "prerequisiteId": "cnm_p053",
+    "strength": "hard",
+    "reason": "学习「万以内数的大小比较」需要先掌握「万以内数的认识」。"
+  },
+  {
+    "topicId": "cnm_p054",
+    "prerequisiteId": "cnm_p029",
+    "strength": "hard",
+    "reason": "学习「万以内数的大小比较」需要先掌握「100以内数的大小」。"
+  },
+  {
+    "topicId": "cnm_p055",
+    "prerequisiteId": "cnm_p053",
+    "strength": "hard",
+    "reason": "学习「万以内数的组成」需要先掌握「万以内数的认识」。"
+  },
+  {
+    "topicId": "cnm_p056",
+    "prerequisiteId": "cnm_p028",
+    "strength": "hard",
+    "reason": "学习「克和千克」需要先掌握「100以内数的认识」。"
+  },
+  {
+    "topicId": "cnm_p056",
+    "prerequisiteId": "cnm_p041",
+    "strength": "hard",
+    "reason": "学习「克和千克」需要先掌握「认识米」。"
+  },
+  {
+    "topicId": "cnm_p057",
+    "prerequisiteId": "cnm_p039",
+    "strength": "hard",
+    "reason": "学习「乘加乘减的运算顺序」需要先掌握「2到6的乘法口诀」。"
+  },
+  {
+    "topicId": "cnm_p057",
+    "prerequisiteId": "cnm_p031",
+    "strength": "hard",
+    "reason": "学习「乘加乘减的运算顺序」需要先掌握「100以内口算加法」。"
+  },
+  {
+    "topicId": "cnm_p058",
+    "prerequisiteId": "cnm_p057",
+    "strength": "hard",
+    "reason": "学习「带小括号的两步运算」需要先掌握「乘加乘减的运算顺序」。"
+  },
+  {
+    "topicId": "cnm_p059",
+    "prerequisiteId": "cnm_p058",
+    "strength": "hard",
+    "reason": "学习「两步加减应用」需要先掌握「带小括号的两步运算」。"
+  },
+  {
+    "topicId": "cnm_p059",
+    "prerequisiteId": "cnm_p035",
+    "strength": "hard",
+    "reason": "学习「两步加减应用」需要先掌握「部分与总数」。"
+  },
+  {
+    "topicId": "cnm_p060",
+    "prerequisiteId": "cnm_p010",
+    "strength": "hard",
+    "reason": "学习「简单的变化规律」需要先掌握「10以内的加法」。"
+  },
+  {
+    "topicId": "cnm_p060",
+    "prerequisiteId": "cnm_p028",
+    "strength": "hard",
+    "reason": "学习「简单的变化规律」需要先掌握「100以内数的认识」。"
+  },
+  {
+    "topicId": "cnm_p061",
+    "prerequisiteId": "cnm_p028",
+    "strength": "hard",
+    "reason": "学习「秒的认识」需要先掌握「100以内数的认识」。"
+  },
+  {
+    "topicId": "cnm_p062",
+    "prerequisiteId": "cnm_p061",
+    "strength": "hard",
+    "reason": "学习「时、分、秒的进率」需要先掌握「秒的认识」。"
+  },
+  {
+    "topicId": "cnm_p063",
+    "prerequisiteId": "cnm_p062",
+    "strength": "hard",
+    "reason": "学习「经过时间」需要先掌握「时、分、秒的进率」。"
+  },
+  {
+    "topicId": "cnm_p063",
+    "prerequisiteId": "cnm_p032",
+    "strength": "hard",
+    "reason": "学习「经过时间」需要先掌握「100以内口算减法」。"
+  },
+  {
+    "topicId": "cnm_p064",
+    "prerequisiteId": "cnm_p033",
+    "strength": "hard",
+    "reason": "学习「几百几十的口算加法」需要先掌握「100以内笔算加法」。"
+  },
+  {
+    "topicId": "cnm_p064",
+    "prerequisiteId": "cnm_p053",
+    "strength": "hard",
+    "reason": "学习「几百几十的口算加法」需要先掌握「万以内数的认识」。"
+  },
+  {
+    "topicId": "cnm_p065",
+    "prerequisiteId": "cnm_p064",
+    "strength": "hard",
+    "reason": "学习「几百几十的口算减法」需要先掌握「几百几十的口算加法」。"
+  },
+  {
+    "topicId": "cnm_p065",
+    "prerequisiteId": "cnm_p034",
+    "strength": "hard",
+    "reason": "学习「几百几十的口算减法」需要先掌握「100以内笔算减法」。"
+  },
+  {
+    "topicId": "cnm_p066",
+    "prerequisiteId": "cnm_p064",
+    "strength": "hard",
+    "reason": "学习「加法的估算」需要先掌握「几百几十的口算加法」。"
+  },
+  {
+    "topicId": "cnm_p067",
+    "prerequisiteId": "cnm_p040",
+    "strength": "hard",
+    "reason": "学习「毫米」需要先掌握「认识厘米」。"
+  },
+  {
+    "topicId": "cnm_p068",
+    "prerequisiteId": "cnm_p067",
+    "strength": "hard",
+    "reason": "学习「分米」需要先掌握「毫米」。"
+  },
+  {
+    "topicId": "cnm_p069",
+    "prerequisiteId": "cnm_p041",
+    "strength": "hard",
+    "reason": "学习「千米」需要先掌握「认识米」。"
+  },
+  {
+    "topicId": "cnm_p070",
+    "prerequisiteId": "cnm_p056",
+    "strength": "hard",
+    "reason": "学习「吨的认识」需要先掌握「克和千克」。"
+  },
+  {
+    "topicId": "cnm_p071",
+    "prerequisiteId": "cnm_p064",
+    "strength": "hard",
+    "reason": "学习「三位数加法笔算」需要先掌握「几百几十的口算加法」。"
+  },
+  {
+    "topicId": "cnm_p072",
+    "prerequisiteId": "cnm_p065",
+    "strength": "hard",
+    "reason": "学习「三位数减法笔算」需要先掌握「几百几十的口算减法」。"
+  },
+  {
+    "topicId": "cnm_p072",
+    "prerequisiteId": "cnm_p071",
+    "strength": "hard",
+    "reason": "学习「三位数减法笔算」需要先掌握「三位数加法笔算」。"
+  },
+  {
+    "topicId": "cnm_p073",
+    "prerequisiteId": "cnm_p042",
+    "strength": "hard",
+    "reason": "学习「倍的认识」需要先掌握「7、8、9的乘法口诀」。"
+  },
+  {
+    "topicId": "cnm_p074",
+    "prerequisiteId": "cnm_p042",
+    "strength": "hard",
+    "reason": "学习「多位数乘一位数」需要先掌握「7、8、9的乘法口诀」。"
+  },
+  {
+    "topicId": "cnm_p074",
+    "prerequisiteId": "cnm_p071",
+    "strength": "hard",
+    "reason": "学习「多位数乘一位数」需要先掌握「三位数加法笔算」。"
+  },
+  {
+    "topicId": "cnm_p075",
+    "prerequisiteId": "cnm_p074",
+    "strength": "hard",
+    "reason": "学习「因数中间或末尾有 0 的乘法」需要先掌握「多位数乘一位数」。"
+  },
+  {
+    "topicId": "cnm_p076",
+    "prerequisiteId": "cnm_p053",
+    "strength": "hard",
+    "reason": "学习「数字编码」需要先掌握「万以内数的认识」。"
+  },
+  {
+    "topicId": "cnm_p077",
+    "prerequisiteId": "cnm_p023",
+    "strength": "hard",
+    "reason": "学习「长方形和正方形的特征」需要先掌握「认识长方形、正方形、三角形和圆」。"
+  },
+  {
+    "topicId": "cnm_p078",
+    "prerequisiteId": "cnm_p077",
+    "strength": "hard",
+    "reason": "学习「长方形和正方形的周长」需要先掌握「长方形和正方形的特征」。"
+  },
+  {
+    "topicId": "cnm_p078",
+    "prerequisiteId": "cnm_p033",
+    "strength": "hard",
+    "reason": "学习「长方形和正方形的周长」需要先掌握「100以内笔算加法」。"
+  },
+  {
+    "topicId": "cnm_p079",
+    "prerequisiteId": "cnm_p043",
+    "strength": "hard",
+    "reason": "学习「几分之一」需要先掌握「除法的意义」。"
+  },
+  {
+    "topicId": "cnm_p080",
+    "prerequisiteId": "cnm_p079",
+    "strength": "hard",
+    "reason": "学习「同分母分数的初步加减」需要先掌握「几分之一」。"
+  },
+  {
+    "topicId": "cnm_p081",
+    "prerequisiteId": "cnm_p034",
+    "strength": "hard",
+    "reason": "学习「集合图里的重叠」需要先掌握「100以内笔算减法」。"
+  },
+  {
+    "topicId": "cnm_p082",
+    "prerequisiteId": "cnm_p049",
+    "strength": "hard",
+    "reason": "学习「东北、东南、西北、西南」需要先掌握「东、南、西、北」。"
+  },
+  {
+    "topicId": "cnm_p083",
+    "prerequisiteId": "cnm_p044",
+    "strength": "hard",
+    "reason": "学习「除数是一位数的除法」需要先掌握「用7、8、9的口诀求商」。"
+  },
+  {
+    "topicId": "cnm_p083",
+    "prerequisiteId": "cnm_p074",
+    "strength": "hard",
+    "reason": "学习「除数是一位数的除法」需要先掌握「多位数乘一位数」。"
+  },
+  {
+    "topicId": "cnm_p084",
+    "prerequisiteId": "cnm_p083",
+    "strength": "hard",
+    "reason": "学习「除法解决实际问题」需要先掌握「除数是一位数的除法」。"
+  },
+  {
+    "topicId": "cnm_p085",
+    "prerequisiteId": "cnm_p037",
+    "strength": "hard",
+    "reason": "学习「复式统计表」需要先掌握「分类与整理」。"
+  },
+  {
+    "topicId": "cnm_p085",
+    "prerequisiteId": "cnm_p033",
+    "strength": "hard",
+    "reason": "学习「复式统计表」需要先掌握「100以内笔算加法」。"
+  },
+  {
+    "topicId": "cnm_p088",
+    "prerequisiteId": "cnm_p078",
+    "strength": "hard",
+    "reason": "学习「面积的意义」需要先掌握「长方形和正方形的周长」。"
+  },
+  {
+    "topicId": "cnm_p089",
+    "prerequisiteId": "cnm_p088",
+    "strength": "hard",
+    "reason": "学习「长方形和正方形的面积」需要先掌握「面积的意义」。"
+  },
+  {
+    "topicId": "cnm_p089",
+    "prerequisiteId": "cnm_p074",
+    "strength": "hard",
+    "reason": "学习「长方形和正方形的面积」需要先掌握「多位数乘一位数」。"
+  },
+  {
+    "topicId": "cnm_p090",
+    "prerequisiteId": "cnm_p089",
+    "strength": "hard",
+    "reason": "学习「面积单位的换算」需要先掌握「长方形和正方形的面积」。"
+  },
+  {
+    "topicId": "cnm_p090",
+    "prerequisiteId": "cnm_p068",
+    "strength": "hard",
+    "reason": "学习「面积单位的换算」需要先掌握「分米」。"
+  },
+  {
+    "topicId": "cnm_p091",
+    "prerequisiteId": "cnm_p062",
+    "strength": "hard",
+    "reason": "学习「年、月、日」需要先掌握「时、分、秒的进率」。"
+  },
+  {
+    "topicId": "cnm_p092",
+    "prerequisiteId": "cnm_p091",
+    "strength": "hard",
+    "reason": "学习「24时记时法」需要先掌握「年、月、日」。"
+  },
+  {
+    "topicId": "cnm_p093",
+    "prerequisiteId": "cnm_p079",
+    "strength": "hard",
+    "reason": "学习「一位小数的初步认识」需要先掌握「几分之一」。"
+  },
+  {
+    "topicId": "cnm_p093",
+    "prerequisiteId": "cnm_p036",
+    "strength": "hard",
+    "reason": "学习「一位小数的初步认识」需要先掌握「认识人民币」。"
+  },
+  {
+    "topicId": "cnm_p094",
+    "prerequisiteId": "cnm_p093",
+    "strength": "hard",
+    "reason": "学习「一位小数的加减」需要先掌握「一位小数的初步认识」。"
+  },
+  {
+    "topicId": "cnm_p095",
+    "prerequisiteId": "cnm_p039",
+    "strength": "hard",
+    "reason": "学习「简单的搭配」需要先掌握「2到6的乘法口诀」。"
+  },
+  {
+    "topicId": "cnm_p099",
+    "prerequisiteId": "cnm_p040",
+    "strength": "hard",
+    "reason": "学习「线段、直线和射线」需要先掌握「认识厘米」。"
+  },
+  {
+    "topicId": "cnm_p217",
+    "prerequisiteId": "cnm_p034",
+    "strength": "hard",
+    "reason": "学习「求两数相差几」需要先掌握「100以内笔算减法」。"
+  },
+  {
+    "topicId": "cnm_p217",
+    "prerequisiteId": "cnm_p009",
+    "strength": "soft",
+    "reason": "学习「求两数相差几」需要先掌握「10以内数的比较」。"
+  },
+  {
+    "topicId": "cnm_p218",
+    "prerequisiteId": "cnm_p217",
+    "strength": "hard",
+    "reason": "学习「求比一个数多（少）几的数」需要先掌握「求两数相差几」。"
+  },
+  {
+    "topicId": "cnm_p218",
+    "prerequisiteId": "cnm_p033",
+    "strength": "hard",
+    "reason": "学习「求比一个数多（少）几的数」需要先掌握「100以内笔算加法」。"
+  },
+  {
+    "topicId": "cnm_p219",
+    "prerequisiteId": "cnm_p048",
+    "strength": "hard",
+    "reason": "学习「数量间的乘除关系」需要先掌握「表内乘法解决实际问题」。"
+  },
+  {
+    "topicId": "cnm_p219",
+    "prerequisiteId": "cnm_p044",
+    "strength": "hard",
+    "reason": "学习「数量间的乘除关系」需要先掌握「用7、8、9的口诀求商」。"
+  },
+  {
+    "topicId": "cnm_p219",
+    "prerequisiteId": "cnm_p051",
+    "strength": "soft",
+    "reason": "学习「数量间的乘除关系」需要先掌握「用口诀求商和余数」。"
+  },
+  {
+    "topicId": "cnm_p220",
+    "prerequisiteId": "cnm_p071",
+    "strength": "hard",
+    "reason": "学习「加减法各部分间的关系」需要先掌握「三位数加法笔算」。"
+  },
+  {
+    "topicId": "cnm_p220",
+    "prerequisiteId": "cnm_p072",
+    "strength": "hard",
+    "reason": "学习「加减法各部分间的关系」需要先掌握「三位数减法笔算」。"
+  },
+  {
+    "topicId": "cnm_p221",
+    "prerequisiteId": "cnm_p014",
+    "strength": "hard",
+    "reason": "学习「观察简单的立体积木」需要先掌握「认识长方体、正方体、圆柱和球」。"
+  },
+  {
+    "topicId": "cnm_p221",
+    "prerequisiteId": "cnm_p023",
+    "strength": "soft",
+    "reason": "学习「观察简单的立体积木」需要先掌握「认识长方形、正方形、三角形和圆」。"
+  },
+  {
+    "topicId": "cnm_p222",
+    "prerequisiteId": "cnm_p221",
+    "strength": "hard",
+    "reason": "学习「长方体纸盒的展开图」需要先掌握「观察简单的立体积木」。"
+  },
+  {
+    "topicId": "cnm_p222",
+    "prerequisiteId": "cnm_p014",
+    "strength": "hard",
+    "reason": "学习「长方体纸盒的展开图」需要先掌握「认识长方体、正方体、圆柱和球」。"
+  },
+  {
+    "topicId": "cnm_p223",
+    "prerequisiteId": "cnm_p057",
+    "strength": "hard",
+    "reason": "学习「同级运算与两级运算的运算顺序」需要先掌握「乘加乘减的运算顺序」。"
+  },
+  {
+    "topicId": "cnm_p223",
+    "prerequisiteId": "cnm_p220",
+    "strength": "soft",
+    "reason": "学习「同级运算与两级运算的运算顺序」需要先掌握「加减法各部分间的关系」。"
+  },
+  {
+    "topicId": "cnm_p224",
+    "prerequisiteId": "cnm_p219",
+    "strength": "hard",
+    "reason": "学习「等量代换（曹冲称象）」需要先掌握「数量间的乘除关系」。"
+  },
+  {
+    "topicId": "cnm_p224",
+    "prerequisiteId": "cnm_p056",
+    "strength": "soft",
+    "reason": "学习「等量代换（曹冲称象）」需要先掌握「克和千克」。"
+  },
+  {
+    "topicId": "cnm_p225",
+    "prerequisiteId": "cnm_p099",
+    "strength": "hard",
+    "reason": "学习「角的认识」需要先掌握「线段、直线和射线」。"
+  },
+  {
+    "topicId": "cnm_p225",
+    "prerequisiteId": "cnm_p023",
+    "strength": "soft",
+    "reason": "学习「角的认识」需要先掌握「认识长方形、正方形、三角形和圆」。"
+  },
+  {
+    "topicId": "cnm_p226",
+    "prerequisiteId": "cnm_p079",
+    "strength": "hard",
+    "reason": "学习「几分之几」需要先掌握「几分之一」。"
+  },
+  {
+    "topicId": "cnm_p227",
+    "prerequisiteId": "cnm_p226",
+    "strength": "hard",
+    "reason": "学习「简单的分数大小比较」需要先掌握「几分之几」。"
+  },
+  {
+    "topicId": "cnm_p227",
+    "prerequisiteId": "cnm_p079",
+    "strength": "hard",
+    "reason": "学习「简单的分数大小比较」需要先掌握「几分之一」。"
+  },
+  {
+    "topicId": "cnm_p228",
+    "prerequisiteId": "cnm_p023",
+    "strength": "hard",
+    "reason": "学习「生活中的运动现象」需要先掌握「认识长方形、正方形、三角形和圆」。"
+  },
+  {
+    "topicId": "cnm_p228",
+    "prerequisiteId": "cnm_p024",
+    "strength": "soft",
+    "reason": "学习「生活中的运动现象」需要先掌握「平面图形的拼组」。"
+  },
+  {
+    "topicId": "cnm_p229",
+    "prerequisiteId": "cnm_p023",
+    "strength": "hard",
+    "reason": "学习「多边形的认识」需要先掌握「认识长方形、正方形、三角形和圆」。"
+  },
+  {
+    "topicId": "cnm_p229",
+    "prerequisiteId": "cnm_p225",
+    "strength": "soft",
+    "reason": "学习「多边形的认识」需要先掌握「角的认识」。"
+  },
+  {
+    "topicId": "cnm_p058",
+    "prerequisiteId": "cnm_p223",
+    "strength": "hard",
+    "reason": "学习「带小括号的两步运算」需要先掌握「同级运算与两级运算的运算顺序」。"
+  },
+  {
+    "topicId": "cnm_p101",
+    "prerequisiteId": "cnm_p225",
+    "strength": "hard",
+    "reason": "学习「锐角、直角和钝角」需要先掌握「角的认识」。"
+  },
+  {
+    "topicId": "cnm_p080",
+    "prerequisiteId": "cnm_p226",
+    "strength": "soft",
+    "reason": "学习「同分母分数的初步加减」需要先掌握「几分之几」。"
+  },
+  {
+    "topicId": "cnm_p077",
+    "prerequisiteId": "cnm_p229",
+    "strength": "soft",
+    "reason": "学习「长方形和正方形的特征」需要先掌握「多边形的认识」。"
+  }
+]

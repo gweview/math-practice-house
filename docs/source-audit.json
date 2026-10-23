@@ -1,0 +1,6 @@
+{
+  "checked": 432,
+  "consistent": 432,
+  "issues": [],
+  "scope": "仅检查来源verify表达式与参考答案一致性，不证明题干语义或教材归属正确。"
+}

@@ -4,6 +4,10 @@ import { readFile } from 'node:fs/promises';
 const catalog = Object.fromEntries(await Promise.all(['topics','questions','dependencies'].map(async k => [k, JSON.parse(await readFile(new URL(`../data/${k}.json`, import.meta.url)))])));
 const engine = await import('../src/engine.js').catch(() => ({}));
 const options = (overrides={}) => ({grade:1,semester:'all',topicId:'all',dimensions:['basic'],level:1,count:6,seed:'test',...overrides});
+test('new candidate, availability and assessment APIs expose semantic contracts', () => {
+ assert.equal(typeof engine.generateCandidates,'function'); assert.equal(typeof engine.getAvailability,'function'); assert.equal(typeof engine.assessAnswer,'function');
+});
+
 test('invalid options and malformed catalogs are rejected, not silently coerced', () => {
  for (const bad of [{grade:0},{grade:'1'},{semester:'春'},{topicId:'missing'},{topicId:'cnm_p060'}, {dimensions:[]},{dimensions:['unknown']},{dimensions:'basic'},{level:4},{count:7},{seed:12}]) {
   assert.throws(()=>engine.generateWorksheet(catalog,options(bad)),/选项|知识点/);
@@ -25,8 +29,8 @@ test('topic-compatible arithmetic fill questions are reproducible, bounded and i
   if(result.questions.length<18)assert.ok(result.warnings.length);
   assert.equal(new Set(result.questions.map(q=>q.fingerprint)).size,result.questions.length);
   for(const q of result.questions) {
-   const m=q.prompt.match(/^(\d+) ([＋－×÷]) □ ＝ (\d+)$/);assert.ok(m,q.prompt);
-   const a=Number(m[1]),b=Number(q.answer),r=Number(m[3]);
+   const m=q.prompt.match(/^(\d+|□)\s*([＋－×÷])\s*(\d+|□)\s*＝\s*(\d+|□)/);assert.ok(m,q.prompt);
+   const a=Number(m[1]==='□'?q.answer:m[1]),b=Number(m[3]==='□'?q.answer:m[3]),r=Number(m[4]==='□'?q.answer:m[4]);
    const actual=m[2]==='＋'?a+b:m[2]==='－'?a-b:m[2]==='×'?a*b:a/b;
    assert.equal(actual,r);assert.ok(Number.isInteger(b)&&b>=0);assert.equal(q.source,'original');
    if(topic.grade===1){assert.ok(!/[×÷]/.test(q.prompt));assert.ok(a<=100&&b<=100&&r<=100);}
@@ -81,7 +85,8 @@ test('arithmetic challenge level adds a verified second step', () => {
    } else if(dimension==='reverse') {
     assert.equal(Number(q.answer),a);assert.equal(final,result-c+step2);assert.ok(q.prompt.includes(`得到 ${final}`));
    } else if(dimension==='reasoning') {
-    assert.equal(Number(q.answer),final);assert.equal(final,step2==='＋'?result+c:result-c);assert.ok(q.prompt.includes(`等于 ${final+1}`));
+    assert.equal(Number(q.answer),final);assert.equal(final,step2==='＋'?result+c:result-c);assert.ok(q.prompt.includes(`等于 ${final+(q.visual.claimTruth?0:1)}`));
+    assert.doesNotMatch(q.prompt,/他说错了|多的数量说错了/);
    } else {
     assert.equal(Number(q.answer),final);
     assert.equal(final,op==='＋'||op==='×'?result+c:result-c);
@@ -104,17 +109,18 @@ test('grade-three equivalence has unique solutions, including two-relation chall
   }
  }
 });
-test('grade-two patterns state their rule explicitly and produce independently calculated next terms', () => {
+test('grade-two patterns constrain rule families and independently solve next or internal missing terms', () => {
  const t=catalog.topics.find(t=>t.id==='cnm_p060'); assert.ok(engine.getCapabilities(t).includes('pattern'));
  for(const level of [1,2,3])for(let seed=0;seed<20;seed++) {
   const r=engine.generateWorksheet(catalog,options({grade:2,topicId:t.id,dimensions:['pattern'],level,count:18,seed:String(seed)}));
   assert.equal(r.questions.length,18);
   for(const q of r.questions){
-   const {start,step,secondStep,terms}=q.visual;
-   let n=start;const expected=[n];
-   for(let i=0;i<4;i++){n+=level===1?step:level===2?(i%2===0?step:secondStep):step*(i+1);expected.push(n);}
-   assert.deepEqual(terms,expected.slice(0,4));assert.equal(Number(q.answer),expected[4]);
-   assert.match(q.prompt,/规则：/);assert.ok(q.prompt.includes(String(step)));assert.ok(n<=1000);
+   const visible=q.prompt.match(/请填空：(.+)。/)[1].split('、'),index=visible.indexOf('□');
+   assert.ok(index>=0);const start=Number(visible[0]),step=Number(visible[1])-start,secondStep=Number(visible[2])-Number(visible[1]);
+   const expected=[start];for(let i=0;i<5;i++)expected.push(expected.at(-1)+(q.familyId.includes('constant')?step:q.familyId.includes('alternating')?(i%2===0?step:secondStep):step*(i+1)));
+   for(let i=0;i<visible.length;i++)if(i!==index)assert.equal(Number(visible[i]),expected[i],q.prompt);
+   assert.equal(Number(q.answer),expected[index]);assert.match(q.prompt,/规则类别/);assert.ok(expected.every(n=>n<=1000));
+   assert.deepEqual(q.student.blocks.find(b=>b.kind==='sequence').data.items,visible);
   }
  }
 });
@@ -125,10 +131,9 @@ test('area and elapsed-time reverse/reasoning questions obey their physical cons
   const r=engine.generateWorksheet(catalog,options({grade,topicId:id,dimensions:[dimension],level,count:18}));assert.equal(r.questions.length,18);
   for(const q of r.questions){
    if(id==='cnm_p089'){
-    const {length,width,strip}=q.visual;
-    assert.ok(length>width+1&&width>0);
-    assert.equal(Number(q.answer),dimension==='reverse'?length:(length-1)*(width+1)-length*width);
-    assert.match(q.prompt,/厘米/);assert.ok(length-strip>0);
+    const nums=q.prompt.match(/\d+/g).map(Number);
+    const expected=dimension==='reasoning'?Math.abs(nums[0]*nums[1]-nums[2]*nums[3]):level===1?nums[0]/nums[1]:(nums[0]/2-nums[1])*nums[1];
+    assert.equal(Number(q.answer),expected,q.prompt);assert.match(q.prompt,/厘米/);assert.ok(expected>=0);
    } else {
     const {startMinute,duration,endHour,endMinute}=q.visual;
     assert.equal(endHour*60+endMinute,9*60+startMinute+duration);
@@ -141,8 +146,9 @@ test('area and elapsed-time reverse/reasoning questions obey their physical cons
 for(const level of [1,2])test(`elapsed-time reasoning level ${level} judges minute subtraction correctly`, () => {
  const r=engine.generateWorksheet(catalog,options({grade:2,topicId:'cnm_p063',dimensions:['reasoning'],level,seed:'review'}));
  assert.equal(r.questions.length,6);
- assert.ok(r.questions[0].prompt.startsWith(level===1?'活动从9时 7 分开始，到 9 时 42 分结束。':'活动从9时 27 分开始，到 10 时 12 分结束。'));
- assert.equal(r.questions[0].answer,level===1?'35':'45');
+ const pool=engine.generateCandidates(catalog,options({grade:2,topicId:'cnm_p063',dimensions:['reasoning'],level,seed:'review'}));
+ const pinned=pool.questions.find(q=>q.prompt.startsWith(level===1?'活动从9时 7 分开始，到 9 时 42 分结束。':'活动从9时 27 分开始，到 10 时 12 分结束。'));
+ assert.ok(pinned);assert.equal(pinned.answer,level===1?'35':'45');
  for(const q of r.questions) {
   const m=q.prompt.match(/^活动从9时 (\d+) 分开始，到 (\d+) 时 (\d+) 分结束。小林把分钟数直接相减，认为用了 (-?\d+) 分钟。/);
   assert.ok(m,q.prompt);
@@ -158,7 +164,7 @@ for(const level of [1,2])test(`elapsed-time reasoning level ${level} judges minu
    assert.match(q.explanation,/同一小时内/);
   } else {
    assert.notEqual(Number(claimed),elapsed);
-   assert.match(q.prompt,/这种算法不可靠，实际用了多少分钟/);
+   assert.match(q.prompt,/这种算法对吗？请验证/);assert.doesNotMatch(q.prompt,/不可靠|错误|不正确/);
    assert.match(q.explanation,/先从9时 .*到10时/);
   }
  }
@@ -267,16 +273,17 @@ test('public metadata describes seven thinking dimensions and three levels', () 
  assert.deepEqual(engine.LEVELS, [{id:1,label:'起步'},{id:2,label:'进阶'},{id:3,label:'挑战'}]);
 });
 
-test('source-only slice covers every topic without relabeling difficulty or padding shortage', () => {
+test('curated source inventory preserves original difficulty independently of authored pilot extensions', () => {
  for (const topic of catalog.topics) for (const level of [1,2,3]) {
-  const result=engine.generateWorksheet(catalog,options({grade:topic.grade,topicId:topic.id,semester:topic.semester,level}));
+  const result=engine.generateCandidates(catalog,options({grade:topic.grade,topicId:topic.id,semester:topic.semester,level}));
   assert.equal(result.seed,'test');assert.equal(result.requestedCount,6);
-  assert.equal(result.questions.length,level===3?0:2);
-  assert.ok(result.warnings.length);
-  for (const q of result.questions) {
+  const sources=result.questions.filter(q=>q.source==='taxonomy');
+  assert.equal(sources.length,level===3?0:({ 'cnm_p030:2':1,'cnm_p040:1':1,'cnm_p047:1':0,'cnm_p047:2':1,'cnm_p079:2':0,'cnm_p227:2':1 }[`${topic.id}:${level}`]??2));
+  for (const q of sources) {
    assert.equal(q.topicId,topic.id); assert.equal(q.grade,topic.grade); assert.equal(q.level,level);
    assert.equal(q.source,'taxonomy'); assert.equal(q.dimension,'basic');
    for(const k of ['id','topicName','prompt','answer','explanation','hint','fingerprint']) assert.equal(typeof q[k],'string');
+   assert.equal(q.schemaVersion,2);
   }
  }
  const a=engine.generateWorksheet(catalog,options());

@@ -1,0 +1,15 @@
+{
+  "purpose": "Local corrections/exclusions applied by src/engine.js at projection time; data/questions.json remains unchanged provenance.",
+  "sourceRevision": "1e9f3d278b90e5a5c36e832c340e262feff0ca78",
+  "corrections": [
+    {"id":"cnm_p226_q2","action":"override answer/verify in generated copy","answer":"C","verify":"'8'","reason":"The prompt asks for denominator of 5/8; C=8 and explanation agree. Original source record preserved."},
+    {"id":"cnm_p030_q3","action":"exclude","reason":"40＋8 requires unit arithmetic and yields 48, outside this tens-only addition/subtraction profile at basic L2. Raw source retained."},
+    {"id":"cnm_p047_q1","action":"exclude","reason":"Pure 6×4 multiplication asks for no division claim or verification; it does not exercise the division-verification objective. Raw source retained."},
+    {"id":"cnm_p047_q2","action":"exclude","reason":"Pure 7×8 multiplication asks for no division claim or verification; it does not exercise the division-verification objective. Raw source retained."},
+    {"id":"cnm_p047_q4","action":"exclude","reason":"Pure 9×4 multiplication asks for no division claim or verification; it does not exercise the division-verification objective. Raw source retained."},
+    {"id":"cnm_p079_q3","action":"exclude","reason":"Fraction concept objective polluted by decimal division."},
+    {"id":"cnm_p079_q4","action":"exclude","reason":"Fraction concept objective polluted by decimal division."},
+    {"id":"cnm_p227_q3","action":"exclude","reason":"Unequal-denominator subtraction exceeds fraction-comparison objective."},
+    {"id":"cnm_p040_q2","action":"exclude","reason":"Grade 2 centimeters question introduces millimeter before that unit's listed grade-3 topic."}
+  ]
+}

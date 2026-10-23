@@ -1,36 +1,46 @@
-# Question engine contract
+# V2 出题引擎与模型
 
-`src/engine.js` is a dependency-free ES module. Public exports:
+## API 分工
 
-- `DIMENSIONS`: `{id,label,description}[]`; IDs `basic`, `fill`, `equivalence`, `pattern`, `reverse`, `reasoning`, `application`.
-- `LEVELS`: `{id:1,label:'起步'}`, `{id:2,label:'进阶'}`, `{id:3,label:'挑战'}`.
-- `loadCatalog()`: asynchronously fetches module-relative `../data/topics.json`, `questions.json`, `dependencies.json`, validates them, and returns `{topics,questions,dependencies}`. HTTP, JSON and validation errors reject. Intended for browser HTTP hosting; Node callers should read JSON with `fs` and pass the catalog directly. Static JSON imports also work.
-- `getCapabilities(topic)`: returns available dimension IDs, **across supported levels**, not a promise that every dimension × level exists.
-- `generateWorksheet(catalog, options)`: synchronous; returns `{questions,warnings,seed,requestedCount}`. Required options: `{grade:1|2|3,semester:'all'|'上'|'下',topicId:'all'|id,dimensions:[dimensionId,...],level:1|2|3,count:6|12|18,seed:string}`. Invalid options/catalog throw; a valid semester filter with no matching topic yields zero questions plus warnings. A topic from another grade throws.
-- `checkAnswer(question,value)`: boolean, accepting strings and finite numeric answers, never treating blank as zero. Supports Unicode fullwidth forms, whitespace removal, case-insensitive choice keys (including parenthesized letters), exact choice text, exact rational equality for decimal/fraction notation, and normalized comma-separated answers. It does not evaluate expressions, accept approximate fractions, infer omitted units, or interpret Chinese number words.
+`src/engine.js` 保留 `DIMENSIONS`、`LEVELS`、`loadCatalog()`、`getCapabilities(topic)`、`generateWorksheet(catalog, options)`、`checkAnswer(question,value)`，新增候选池、容量与类型化评分接口。
 
-Questions contain `id,topicId,topicName,grade,dimension,level,prompt,answer,explanation,hint,source,fingerprint`; `answer` is always a string. Optional `choices` remains `{key,text}[]`; optional `visual` is typed semantic metadata (`arithmetic`, `rectangle`, `time`, `pattern`, `equivalence`). Do not print raw metadata to pupils: it may contain solved quantities for diagrams/verification. UI may simply render the prompt. Source questions retain original additional fields such as `difficulty`, `type`, and `verify`; the engine **never evaluates** `verify` strings.
+- `generateCandidates(catalog, options)` 返回当前范围的候选、警告、种子与请求量；不承担最终教学分区。
+- `getAvailability(catalog, options)` 核对当前维度与难度可用量。容量指确定性有界候选池，不是所有可能数学题的总数。
+- `generateWorksheet` 是兼容旧调用的抽样入口。新界面使用 `src/planner.js` 的 `planWorksheet`：先定义教学槽位，再选题。
+- `assessAnswer(question,value)` 返回 `correct / incorrect / partial / manual / unanswered` 与分小问结果。新界面必须用它，不能用旧 `checkAnswer` 的单一布尔值判断理由是否完成。
 
-## Actual coverage
+标准选项为 `{grade:1|2|3,semester:'all'|'上'|'下',topicId:'all'|id,dimensions:[...],level:1|2|3,count:6|12|18,seed:string}`。非法参数或悬空关联抛错；合法但缺题的组合明确警告，不暗换范围、重复或降级。
 
-Validated catalog: 108 topics, 432 source questions, 153 dependency edges. All 108 topics have source `basic` questions at levels 1 and 2: upstream `basic → 1`, `standard → 2`. They are not reclassified into other thinking dimensions. No source question is upgraded to challenge.
+## 学生与教师数据分离
 
-There are 36 topics with independently authored parametric extensions:
+`src/question-model.js` 的 `createQuestion`、`toQuestionV2` 构造兼容旧题的模型。
 
-- 32 explicit arithmetic topic profiles: addition/subtraction (5, 10, 20, 100, and three-digit ranges), non-carry addition, making ten, fixed addends/subtrahends, oral versus written arithmetic, multiples of ten, multiplication tables, exact division, and multi-digit multiplication/division. `fill`, `reverse`, `reasoning`, `application`, levels 1–3; level 3 adds a second step to each dimension (two-step fill equations, three-step reverse chains, two-step claim checks, two-step applications) while keeping operands and, for addition/subtraction profiles, results inside the topic's number range. Degenerate pairs (such as a missing divisor of 1) are excluded. First-grade profiles use only addition/subtraction and never exceed 100. Table division limits both divisor and quotient to the applicable table. Ambiguous zero-dividend missing-divisor questions are excluded.
-- `cnm_p089` (grade 3 area): `reverse`, `reasoning`, levels 1–2; recover a side from area, undo a cut strip, compare equal-perimeter rectangles' areas.
-- `cnm_p063` (grade 2 elapsed time): `reverse`, `reasoning`, levels 1–2; undo duration and check elapsed time, within an hour or crossing an hour. No date/24-hour-clock knowledge required.
-- `cnm_p224` (grade 3 equivalence): `equivalence`, levels 1–3. One substitution; chained substitution; total weight plus a weight ratio requiring substitution before division. Each problem has a unique positive-integer solution.
-- `cnm_p060` (grade 2 patterns): `pattern`, levels 1–3. Constant increments; alternating increments; increments themselves increasing by an explicit fixed amount. The rule is always stated, avoiding ambiguous finite-prefix guessing.
+- 旧字段 `id/topicId/topicName/grade/dimension/level/prompt/answer/explanation/hint/source/fingerprint` 保留。
+- `student.blocks` 只包含学生可见文字、算式及已知条件图示；`student.tasks` 定义各个作答控件与标签。
+- `answerSpec` 支持 scalar、quantity、choice、tuple、multipart 与 manual/rubric；教师答案与解释不作为学生 blocks 渲染。
+- `familyId/skills/prerequisites/difficultyDescriptor/layout` 承载任务结构、目标技能、显式附加前置、设计难度和书写空间信息。完整课程先修关系仍从目录图读取；不将不存在的字段当作已实现接口。
+- 旧 `visual` 可能含解量，禁止直接遍历或打印。只能渲染经过学生投影的白名单图示字段。
 
-Arithmetic level 2 fill moves the unknown to the first operand; reverse and application add an undo/second operation. Reasoning checks a claimed comparison, using a larger comparison quantity at level 2. Area reasoning is available at both non-challenge levels but is the same structural task; these labels are author-defined practice categories, not calibrated psychometric difficulty.
+评分不执行答案中的算式，不使用 `eval`，以精确有理数比较分数/小数；支持全角、空格、选择键及文本。空白不是0，不接受 NaN/Infinity/零分母。单位依据题目规格处理，不推断任意单位换算。商余数可分小问作答；人工理由或绘图不因数值答对就标为整题全对。
 
-**Challenge is supported for equivalence, patterns, and the 32 arithmetic profiles (two-step variants).** All other challenge combinations return warnings and zero questions, never easier fallback. Unsupported requested dimensions are warned even if other dimensions fill the sheet. Tiny valid domains (e.g. `9加几`) may honestly provide fewer than 18 unique problems. A finite bounded candidate budget is used for large arithmetic domains; a shortage warning describes availability in that generated candidate pool, not a mathematical proof that no more questions exist.
+## 来源校订
 
-Selection is seeded and reproducible within this engine version and identical catalog ordering. Dimensions are selected round-robin so large parametric pools do not crowd out source basics. A sheet contains no repeated canonical prompt/answer/choice fingerprint. No cross-sheet uniqueness is promised. Dependency edges are validated, but prerequisite remediation/scheduling is the UI's responsibility; they are not used to introduce other-grade questions.
+原始抽取为108点、432题、153条先修边。来源题 basic→1、standard→2，不把来源题改名为其他维度或升级为挑战。
 
-## Verification and provenance
+`data/source-corrections.json` 保留校订理由：1道分母题纠正投影为C/8，8道越界或目标不符题从默认题池排除。`data/questions.json` 与原始来源修订保持不变。原始 verify 与原始答案的一致性检查不等于题干语义正确；校订投影另有回归测试。
 
-Run `node --test tests/engine.test.js`. Tests cover every source topic and difficulty mapping, invalid input/catalogs, seeded random arithmetic independently checked from prompts, unique fill and substitution solutions, explicit-rule pattern calculations, grade/semester constraints, 6/12/18 counts and honest shortage, deduplication, non-mutation, fetch failures, and answer normalization.
+## 实际能力与难度
 
-The source taxonomy is an upstream AI draft, not teacher-reviewed, from commit `1e9f3d278b90e5a5c36e832c340e262feff0ca78`, licensed CC BY-NC 4.0. Engine tests verify templates and contracts; they do not constitute teacher review of all inherited wording or establish classroom suitability. Original templates do not remove attribution/noncommercial obligations for the supplied catalog.
+- 32个显式算术 profile 保留参数化扩展；约束中间及最终数量、整十数、不进位条件和乘除口诀范围。部分挑战仍是受限的两步算式，不宣称所有点已升级为多类型推理任务。
+- 六个重点点由 `src/templates/pilots.js` 优先提供语义候选：`cnm_p020/p018/p047/p060/p224/p089`。详见 `CONTENT-PILOTS.md`。支持范围以 `getCapabilities` 和实际容量为准。
+- 时间推算 `cnm_p063` 保留同小时/跨小时逆向和方法判断，不能预先告知判断结果。
+- 不承诺所有108点都有全部7维度、3难度。`getCapabilities` 只列跨级能力，并不表示每个级别都有题。小域如9加几可能不足18个不重复任务，必须说明。
+- 难度依据支架、未知位置、关系链、表征及解释负担设计，未经过教师逐题审定或学生样本标定；参数变化不单独计作结构多样性。
+
+确定性种子只承诺同一引擎/目录版本和设置下可复现，不承诺跨版本题序不变。导出应保留 schema、engine、planner、catalog 版本与种子。只去除单卷的重复，不承诺跨卷互不相同。
+
+## 验证
+
+`npm test` 覆盖契约、数域、独立题干复算、唯一解、来源投影、类型评分、蓝图范围和旧接口；生产交互与实际打印另行验收，见 `VERIFICATION.md`。测试不替代教师审核，也不能证明上游所有题目均适合某个教材版本。
+
+来源固定修订为 `1e9f3d278b90e5a5c36e832c340e262feff0ca78`，CC BY-NC 4.0，AI初稿；沿用目录仍有署名及非商业限制。

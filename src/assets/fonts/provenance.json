@@ -1,0 +1,11 @@
+{
+  "upstream": "https://github.com/notofonts/noto-cjk",
+  "sourcePath": "Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf",
+  "sourceSha256": "2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b",
+  "derivedFamily": "House Chinese V2",
+  "license": "SIL-OFL-1.1",
+  "modifications": "Subset to repository literals, retain licensing metadata, rename derived family.",
+  "fontToolsVersion": "4.67.0",
+  "subsetSha256": "668598085aa186ff64f7816d9faee41951bbb743e9ed060c5d5351acddc8d13c",
+  "unicodeCount": 975
+}

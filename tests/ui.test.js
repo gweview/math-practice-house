@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8').catch(() => '');
-const ui = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+import * as ui from '../src/main.js';
 test('browser smoke creates a portable screenshot artifact directory', async () => {
  const smoke=await readFile(new URL('./ui.browser.mjs',import.meta.url),'utf8');
  assert.match(smoke,/await mkdir\('artifacts',\{recursive:true\}\)/);

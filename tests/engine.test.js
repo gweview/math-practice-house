@@ -58,7 +58,36 @@ test('arithmetic reverse, reasoning and application use valid original problems 
   }
  }
  const q=engine.generateWorksheet(catalog,options({topicId:'cnm_p010',dimensions:['reverse'],level:3}));
- assert.equal(q.questions.length,0);assert.ok(q.warnings.length);
+ assert.ok(q.questions.length>0);assert.ok(q.questions.every(x=>x.level===3));
+ const plain=catalog.topics.find(t=>t.id==='cnm_p014');
+ const unsupported=engine.generateWorksheet(catalog,options({grade:plain.grade,topicId:'cnm_p014',dimensions:['reverse'],level:3}));
+ assert.equal(unsupported.questions.length,0);assert.ok(unsupported.warnings.length);
+});
+
+test('arithmetic challenge level adds a verified second step', () => {
+ for(const id of ['cnm_p010','cnm_p032','cnm_p039','cnm_p083']) for(const dimension of ['fill','reverse','reasoning','application']) for(let seed=0;seed<4;seed++) {
+  const t=catalog.topics.find(t=>t.id===id);
+  const r=engine.generateWorksheet(catalog,options({grade:t.grade,topicId:id,dimensions:[dimension],level:3,count:12,seed:String(seed)}));
+  assert.ok(r.questions.length>0,`${id}/${dimension}`);assert.deepEqual(r,engine.generateWorksheet(catalog,options({grade:t.grade,topicId:id,dimensions:[dimension],level:3,count:12,seed:String(seed)})));
+  assert.equal(new Set(r.questions.map(q=>q.fingerprint)).size,r.questions.length);
+  for(const q of r.questions) {
+   assert.equal(q.level,3);assert.equal(q.source,'original');assert.ok(engine.checkAnswer(q,q.answer));
+   const {a,b,result,op,c,step2,final}=q.visual;
+   const base=op==='＋'?a+b:op==='－'?a-b:op==='×'?a*b:a/b;assert.equal(result,base);
+   if(dimension==='fill') {
+    const m=q.prompt.match(/^(\d+) ([＋－×÷]) □ ([＋－]) (\d+) ＝ (\d+)$/);assert.ok(m,q.prompt);
+    const v=Number(m[2]==='＋'?a+Number(q.answer):m[2]==='－'?a-Number(q.answer):m[2]==='×'?a*Number(q.answer):a/Number(q.answer));
+    assert.equal(step2==='＋'?v+c:v-c,Number(m[5]));assert.equal(final,Number(m[5]));assert.equal(Number(q.answer),b);
+   } else if(dimension==='reverse') {
+    assert.equal(Number(q.answer),a);assert.equal(final,result-c+step2);assert.ok(q.prompt.includes(`得到 ${final}`));
+   } else if(dimension==='reasoning') {
+    assert.equal(Number(q.answer),final);assert.equal(final,step2==='＋'?result+c:result-c);assert.ok(q.prompt.includes(`等于 ${final+1}`));
+   } else {
+    assert.equal(Number(q.answer),final);
+    assert.equal(final,op==='＋'||op==='×'?result+c:result-c);
+   }
+  }
+ }
 });
 
 test('grade-three equivalence has unique solutions, including two-relation challenge substitution', () => {

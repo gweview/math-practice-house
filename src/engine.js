@@ -115,9 +115,39 @@ function generateOriginal(t,dimension,level,rng) {
   }
   return out;
  }
- if(!arithmeticSpec(t)||!['fill','reverse','reasoning','application'].includes(dimension)||level===3)return [];
+ if(!arithmeticSpec(t)||!['fill','reverse','reasoning','application'].includes(dimension))return [];
  return arithmeticCandidates(t,rng).filter(p=>!(dimension==='fill'&&((level===1&&p.op==='÷'&&p.a===0)||(level===2&&p.b===0&&p.op==='×')))).map(({a,b,r,op})=>{
   const offset=Math.min(r,level===1?1:Math.max(1,Math.floor(r/2)));
+  if(level===3) {
+   const c=2+((a+b)%4), max=arithmeticSpec(t)[2];
+   const step2=(op==='×'||op==='÷')?'＋':(r+c<=max?'＋':'－'), chained=step2==='＋'?r+c:r-c;
+   if(dimension==='fill') {
+    if(chained<0||(op==='÷'&&(a===0||b<=1))||(op==='×'&&(a<=1||b<=1)))return null;
+    return originalQuestion(t,dimension,level,`${a} ${op} □ ${step2} ${c} ＝ ${chained}`,b,`先逆推第二步：${chained} ${step2==='＋'?'－':'＋'} ${c} ＝ ${r}；再由 ${a} ${op} □ ＝ ${r}，得 □ ＝ ${b}。代回检验：${a} ${op} ${b} ${step2} ${c} ＝ ${chained}。`,'从结果倒着推：先还原最后一步，再找缺少的数。',{type:'arithmetic',a,b,result:r,op,offset,step2,c,final:chained});
+   }
+   if(dimension==='reverse') {
+    if(r<2)return null;
+    const o1=Math.max(1,Math.floor(r/2)), o2=2+((a*3+b)%4), end=r-o1+o2;
+    return originalQuestion(t,dimension,level,`想一个数，把它${op==='＋'?`加上 ${b}`:op==='－'?`减去 ${b}`:op==='×'?`乘 ${b}`:`除以 ${b}`}，再减去 ${o1}，再加上 ${o2}，得到 ${end}。原来的数是多少？`,a,`倒着还原：${end} － ${o2} ＝ ${r-o1}，${r-o1} ＋ ${o1} ＝ ${r}；再逆推第一步，代回检验：${a} ${op} ${b} ＝ ${r}。`,'从最后的结果开始，把每一步换成相反的运算倒着还原。',{type:'arithmetic',a,b,result:r,op,offset,step2:o2,c:o1,final:end});
+   }
+   if(dimension==='reasoning') {
+    if(chained<0)return null;
+    return originalQuestion(t,dimension,level,`小林说：“${a} ${op} ${b} 再${step2==='＋'?'加':'减'} ${c} 等于 ${chained+1}。”他说错了。实际等于多少？`,chained,`先算 ${a} ${op} ${b} ＝ ${r}，再${step2==='＋'?'加':'减'} ${c}：${r} ${step2} ${c} ＝ ${chained}。`,'不要直接相信小林的说法：分两步自己算一遍，再作判断。',{type:'arithmetic',a,b,result:r,op,offset,step2,c,final:chained});
+   }
+   if(op==='＋') {
+    if(r+c>max||a+b===0)return null;
+    return originalQuestion(t,dimension,level,`盒里有 ${a} 张卡片，又放入 ${b} 张，后来又放入 ${c} 张，现在有多少张？`,r+c,`先合并前两次：${a} ＋ ${b} ＝ ${r}，再加上后来放入的：${r} ＋ ${c} ＝ ${r+c}。`,'分两步想：先求放入一次后的数量，再处理第二次放入。',{type:'arithmetic',a,b,result:r,op,offset,step2:'＋',c,final:r+c});
+   }
+   if(op==='－') {
+    if(r<c)return null;
+    return originalQuestion(t,dimension,level,`有 ${a} 张卡片，送出 ${b} 张，又送出 ${c} 张，还剩多少张？`,r-c,`先算送出一次后剩的：${a} － ${b} ＝ ${r}，再送出：${r} － ${c} ＝ ${r-c}。`,'分两步想：先求送出一次后剩多少，再求又送出后剩多少。',{type:'arithmetic',a,b,result:r,op,offset,step2:'－',c,final:r-c});
+   }
+   if(op==='×') {
+    return originalQuestion(t,dimension,level,`每袋有 ${a} 颗珠子，${b} 袋都装好后，又单独拿来 ${c} 颗，一共有多少颗？`,r+c,`先算袋里的：${a} × ${b} ＝ ${r}，再加上单独的：${r} ＋ ${c} ＝ ${r+c}。`,'分两步想：先求袋里的总数，再加上袋外的。',{type:'arithmetic',a,b,result:r,op,offset,step2:'＋',c,final:r+c});
+   }
+   if(r<=c)return null;
+   return originalQuestion(t,dimension,level,`把 ${a} 张卡片平均分给 ${b} 人，每人分到后，又把自己分到的卡片中的 ${c} 张放回盒里。每人手里还剩多少张？`,r-c,`先平均分：${a} ÷ ${b} ＝ ${r}，每人再放回 ${c} 张：${r} － ${c} ＝ ${r-c}。`,'分两步想：先求每人分到多少，再求放回后手里剩多少。',{type:'arithmetic',a,b,result:r,op,offset,step2:'－',c,final:r-c});
+  }
   let prompt,answer,explanation,hint;
   const equation=`${a} ${op} ${b} ＝ ${r}`;
   if(dimension==='fill') {
@@ -139,7 +169,7 @@ function generateOriginal(t,dimension,level,rng) {
    }
   }
   return originalQuestion(t,dimension,level,prompt,answer,explanation,hint,{type:'arithmetic',a,b,result:r,op,offset});
- });
+ }).filter(Boolean);
 }
 function normalize(value) {
  if(!['string','number'].includes(typeof value)||String(value).length>256)return '';

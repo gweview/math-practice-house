@@ -42,6 +42,7 @@ try {
  assert.equal(await page.locator('.question-card').count(),6);
  await page.pdf({path:'artifacts/grade1-fill.pdf',format:'A4',printBackground:true,preferCSSPageSize:true});
  await page.locator('.nav-item[data-view=configure]').click();
+ await page.locator('[data-topic=cnm_p014]').click();
  await page.locator('[name=level][value="3"]').check();
  await page.locator('.generate').click();
  assert.equal(await page.locator('.question-card').count(),0);

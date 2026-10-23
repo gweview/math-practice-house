@@ -1,6 +1,5 @@
 node_modules/
 dist/
-artifacts/
 *.zip
 __pycache__/
 *.py[cod]

@@ -93,8 +93,40 @@ const wordSemantics = (stage: Grade, steps: number): readonly WordSemantic[] => 
   if (steps < 2 || stage === 'grade2') return groups;
   return [...groups, 'groups-plus', 'groups-minus', 'add-then-subtract', 'subtract-then-add', ...(steps >= 3 ? ['three-step-change' as const] : [])];
 };
+/** Semantics that require reasoning backwards from a result to an unknown start/change. */
+export const REVERSE_WORD_SEMANTICS: readonly WordSemantic[] = ['unknown-start', 'unknown-change', 'difference'];
+/** Semantics that require two or more reasoning steps. */
+export const MULTI_STEP_WORD_SEMANTICS: readonly WordSemantic[] = ['groups-plus', 'groups-minus', 'add-then-subtract', 'subtract-then-add', 'three-step-change'];
+/**
+ * Apply difficulty directives to the semantic pool. No directive means the
+ * legacy uniform pool. reverse and steps compose: reverse filters the pool
+ * first, then steps filters what remains; an empty intersection keeps the
+ * previous pool, so reverse wins over steps (no reverse multi-step
+ * semantics exist yet) and stage gating always wins over both.
+ */
+function selectWordSemantics(input: QuestionGenerationInput): readonly WordSemantic[] {
+  let available = wordSemantics(input.config.stage, input.profile.wordSteps);
+  const directive = input.directive;
+  if (directive?.reverse === true) {
+    const filtered = available.filter(semantic => REVERSE_WORD_SEMANTICS.includes(semantic));
+    if (filtered.length) available = filtered;
+  } else if (directive?.reverse === false) {
+    const filtered = available.filter(semantic => !REVERSE_WORD_SEMANTICS.includes(semantic));
+    if (filtered.length) available = filtered;
+  }
+  const steps = directive?.steps;
+  if (typeof steps === 'number') {
+    const filtered = steps <= 1
+      ? available.filter(semantic => wordOps[semantic].length === 1)
+      : steps === 2
+        ? available.filter(semantic => wordOps[semantic].length === 2)
+        : available.filter(semantic => wordOps[semantic].length >= 2);
+    if (filtered.length) available = filtered;
+  }
+  return available;
+}
 export function generateWordProblem(input: QuestionGenerationInput): Question {
-  const semantic = choose(wordSemantics(input.config.stage, input.profile.wordSteps), input.random); const entity = choose(WORD_ENTITIES, input.random); const templateIndex = int(0, 7, input.random); const cap = Math.max(2, capFor(input, 'wordProblem')); const base = int(2, Math.max(2, Math.floor(Math.min(cap, 80) * .6)), input.random);
+  const semantic = choose(selectWordSemantics(input), input.random); const entity = choose(WORD_ENTITIES, input.random); const templateIndex = int(0, 7, input.random); const cap = Math.max(2, capFor(input, 'wordProblem')); const base = int(2, Math.max(2, Math.floor(Math.min(cap, 80) * .6)), input.random);
   let operands: number[]; let answer: number;
   if (semantic === 'combine' || semantic === 'decrease' || semantic === 'difference') { const b = int(1, Math.max(1, Math.min(base - 1, cap - base)), input.random); operands = semantic === 'combine' ? [base, b] : [base + b, b]; answer = wordSolve(semantic, operands) as number; }
   else if (semantic === 'unknown-start') { const removed = int(1, Math.max(1, Math.min(20, cap - base)), input.random); operands = [base, removed]; answer = base + removed; }
@@ -143,12 +175,14 @@ export const validateInverseProportion: QuestionValidator = (q, c, d) => simpleV
 export const validateConcentration: QuestionValidator = (q, c, d) => simpleValidate(q, c, d, 'concentration', 2, solveConcentration, (x, answer) => ({ text: `盐水中含盐${x.operands[0]}克，盐水总重${x.operands[1]}克，浓度是多少？（百分号前保留两位小数）`, operands: x.operands, metadata: { unit: '%', concentration: String(answer).slice(0, -1) }, answer, unit: '%', steps: [`${x.operands[0]}÷${x.operands[1]}×100%=${String(answer).slice(0, -1)}%`] }), x => x.operands[0] < x.operands[1]);
 export const validateBudgetPlan: QuestionValidator = (q, c, d) => simpleValidate(q, c, d, 'budgetPlan', 4, solveBudgetPlan, (x, answer) => { const a = x.operands[0] + x.operands[1], b = x.operands[2] + x.operands[3]; const diff = scaled(Math.abs(a - b)); return { text: `比较两种出行方案：方案A交通${scaled(x.operands[0])}元、餐费${scaled(x.operands[1])}元；方案B交通${scaled(x.operands[2])}元、餐费${scaled(x.operands[3])}元。哪种方案较便宜？比另一方案少多少元？`, operands: x.operands, metadata: { unit: '元', cheaper: a < b ? '方案A' : '方案B' }, answer, unit: '元', steps: [`方案A合计${scaled(a)}元，方案B合计${scaled(b)}元`, `差额为${diff}元`] }; }, x => x.operands[0] + x.operands[1] !== x.operands[2] + x.operands[3]);
 
-const profile = (max: number, min = 1) => Object.fromEntries(DIFFICULTIES.map(d => [d, { max, minimumMax: min, terms: 2, carryRate: 0, highRangeRate: .5, wordSteps: d === 'challenge' ? 3 : d === 'advanced' ? 2 : 1, maxFactor: 9, trivialRate: .1, equalityRate: .2, mixedRate: .3 }])) as QuestionDefinition['difficultyProfiles'];
-const wordDef = (id: ApplicationType, label: string, allowedGrades: readonly Grade[], renderKind: QuestionDefinition['renderKind'], footprint: QuestionDefinition['footprint'], generate: QuestionDefinition['generate'], validate: QuestionValidator, max: number): QuestionDefinition => ({ id, label, description: `通过${label}练习建立数量关系模型并分步解决生活问题。`, group: 'fill-application', domain: 'integrated-practice', contentCategory: 'application', skills: [label, '建模列式', '单位意识', '问题解决'], allowedGrades, recommendedGrades: allowedGrades, difficulties: DIFFICULTIES, difficultyProfiles: profile(max), practice: 'standard', generate, validate, renderKind, footprint });
+const REVERSE_RATE: Record<(typeof DIFFICULTIES)[number], number> = { entry: 0, easy: .1, standard: .25, advanced: .35, challenge: .45 };
+const MULTI_STEP_RATE: Record<(typeof DIFFICULTIES)[number], number> = { entry: 0, easy: .1, standard: .3, advanced: .5, challenge: .55 };
+const profile = (max: number, min = 1) => Object.fromEntries(DIFFICULTIES.map(d => [d, { max, minimumMax: min, terms: 2, carryRate: 0, highRangeRate: .5, wordSteps: d === 'challenge' ? 3 : d === 'advanced' ? 2 : 1, maxFactor: 9, trivialRate: .1, equalityRate: .2, mixedRate: .3, reverseRate: REVERSE_RATE[d], multiStepRate: MULTI_STEP_RATE[d] }])) as QuestionDefinition['difficultyProfiles'];
+const wordDef = (id: ApplicationType, label: string, allowedGrades: readonly Grade[], renderKind: QuestionDefinition['renderKind'], footprint: QuestionDefinition['footprint'], generate: QuestionDefinition['generate'], validate: QuestionValidator, max: number, directives?: QuestionDefinition['directives']): QuestionDefinition => ({ id, label, description: `通过${label}练习建立数量关系模型并分步解决生活问题。`, group: 'fill-application', domain: 'integrated-practice', contentCategory: 'application', skills: [label, '建模列式', '单位意识', '问题解决'], allowedGrades, recommendedGrades: allowedGrades, difficulties: DIFFICULTIES, difficultyProfiles: profile(max), practice: 'standard', generate, validate, renderKind, footprint, ...(directives ? { directives } : {}) });
 const WORD = { columns: 'full' as const, heightMm: { standard: 28, large: 31 }, preventBreakInside: true };
 const TABLE = { columns: 'full' as const, heightMm: { standard: 31, large: 36 }, preventBreakInside: true };
 export const APPLICATION_QUESTION_DEFINITIONS: readonly QuestionDefinition[] = [
-  wordDef('wordProblem', '综合应用题', ALL, 'word', WORD, generateWordProblem, validateWordProblem, MAX.wordProblem),
+  wordDef('wordProblem', '综合应用题', ALL, 'word', WORD, generateWordProblem, validateWordProblem, MAX.wordProblem, { reverse: true, multiStep: true }),
   wordDef('moneyCalculation', '人民币与找零', G1, 'word', WORD, generateMoneyCalculation, validateMoneyCalculation, MAX.moneyCalculation),
   wordDef('priceQuantityTotal', '单价、数量与总价', G4, 'word', WORD, generatePriceQuantityTotal, validatePriceQuantityTotal, MAX.priceQuantityTotal),
   wordDef('proportionalReasoning', '正比例关系', G6, 'table', TABLE, generateProportionalReasoning, validateProportionalReasoning, MAX.proportionalReasoning),

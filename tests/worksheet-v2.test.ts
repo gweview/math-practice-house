@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { generateWorksheet } from '../src/core/generate';
+import { getProblemProfile } from '../src/core/difficulty-config';
 import type { ProblemType, WorksheetConfig } from '../src/core/types';
+import { scoreQuestionDifficulty } from '../src/domain/questions/difficulty-score';
 import { allocateDomainBalancedCounts, allocateTypeCounts, buildWorksheetBlueprint, estimatePageTargetCount } from '../src/domain/worksheet/blueprint';
 import { typesForPreset } from '../src/domain/worksheet/presets';
 import { getQuestionDefinition } from '../src/domain/questions/registry';
@@ -155,8 +157,8 @@ describe('worksheet V2 blueprint', () => {
         expect(changes).toBeLessThanOrEqual(1);
       }
       if (ordering === 'progressive') {
-        const magnitudes = worksheet.questions.map(question => Number(question.metadata?.magnitude ?? Math.max(...question.operands)));
-        expect(magnitudes).toEqual([...magnitudes].sort((left, right) => left - right));
+        const scores = worksheet.questions.map(question => scoreQuestionDifficulty(question, getProblemProfile(question.type, 'standard', 'grade6', 'free')));
+        expect(scores).toEqual([...scores].sort((left, right) => left - right));
       }
     }
   });

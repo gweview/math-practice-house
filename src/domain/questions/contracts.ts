@@ -52,6 +52,23 @@ export interface DifficultyProfile {
   trivialRate?: number;
   equalityRate?: number;
   mixedRate?: number;
+  /** Share of items that must require reverse thinking (unknown start/change, inverse fill-in). */
+  reverseRate?: number;
+  /** Share of items that must use more than one reasoning step, within the wordSteps ceiling. */
+  multiStepRate?: number;
+}
+
+/**
+ * Difficulty directives a definition opts into. Opting in is a contract: the
+ * generator must honor the matching directive field, and the orchestrator
+ * then enforces exact per-worksheet quotas from the resolved profile rates.
+ * Types without this field keep legacy behavior (directives ignored).
+ */
+export interface QuestionDirectives {
+  /** Honor directive.reverse: true forces reverse-thinking items, false excludes them. */
+  reverse?: boolean;
+  /** Honor directive.steps: 1 forces single-step items, >=2 forces multi-step items. */
+  multiStep?: boolean;
 }
 
 export interface QuestionDefinition {
@@ -66,6 +83,8 @@ export interface QuestionDefinition {
   recommendedGrades: readonly Grade[];
   difficulties: readonly Difficulty[];
   difficultyProfiles: Readonly<Partial<Record<Difficulty, DifficultyProfile>>>;
+  /** Difficulty directives this definition honors; absent means legacy behavior. */
+  directives?: QuestionDirectives;
   practice: 'standard' | 'vertical';
   generate: QuestionGenerator;
   validate: QuestionValidator;

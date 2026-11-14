@@ -47,6 +47,8 @@ export interface ProblemProfile {
   trivialRate: number;
   equalityRate: number;
   mixedRate: number;
+  reverseRate: number;
+  multiStepRate: number;
 }
 
 export type { Difficulty, ProblemType };

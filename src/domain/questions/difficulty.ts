@@ -16,7 +16,7 @@ const COMPLEXITY_CAP: Record<Grade, Pick<ProblemProfile, 'terms' | 'wordSteps'>>
 };
 const FALLBACK: Required<DifficultyProfile> = {
   max: 1000, minimumMax: 5, minimumOperand: 0, min: 0, terms: 3, carryRate: .5, highRangeRate: .5, wordSteps: 1,
-  maxFactor: 9, trivialRate: .08, equalityRate: .2, mixedRate: .4
+  maxFactor: 9, trivialRate: .08, equalityRate: .2, mixedRate: .4, reverseRate: .25, multiStepRate: .3
 };
 
 function profileFor(definition: QuestionDefinition, difficulty: Difficulty): Required<DifficultyProfile> {
@@ -49,6 +49,8 @@ export function resolveProblemProfile(
     trivialRate: configured.trivialRate,
     equalityRate: configured.equalityRate,
     mixedRate: configured.mixedRate,
+    reverseRate: configured.reverseRate,
+    multiStepRate: configured.multiStepRate,
     min: Math.min(max, configured.minimumOperand ?? standard.minimumOperand ?? configured.min ?? 0),
     max
   };

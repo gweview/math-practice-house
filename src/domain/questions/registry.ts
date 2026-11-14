@@ -66,7 +66,7 @@ export function assertQuestionRegistryComplete(): void {
       ? { ...baseConfig, practiceMode: definition.id === 'verticalAddition' || definition.id === 'verticalSubtraction' ? 'verticalAddSub' as const : 'verticalMulDiv' as const, verticalOperations: [definition.id === 'verticalAddition' ? 'addition' : definition.id === 'verticalSubtraction' ? 'subtraction' : definition.id === 'verticalMultiplication' ? 'multiplication' : 'division'] as ['addition' | 'subtraction' | 'multiplication' | 'division'] }
       : baseConfig;
     const max = definition.difficultyProfiles.standard?.max ?? 1000;
-    const question = handler.generate({ type: definition.id, config, profile: { min: 0, max, terms: 3, carryRate: .5, highRangeRate: .5, wordSteps: 2, maxFactor: 12, trivialRate: .1, equalityRate: .2, mixedRate: .4 }, random: context.random, createId: context.createId });
+    const question = handler.generate({ type: definition.id, config, profile: { min: 0, max, terms: 3, carryRate: .5, highRangeRate: .5, wordSteps: 2, maxFactor: 12, trivialRate: .1, equalityRate: .2, mixedRate: .4, reverseRate: .25, multiStepRate: .3 }, random: context.random, createId: context.createId });
     if (!question || question.type !== definition.id) throw new Error(`题型 ${definition.id} 生成能力不可用`);
     const validation = handler.validate(question, config, definition);
     if (!validation.valid) throw new Error(`题型 ${definition.id} 校验能力不可用：${validation.errors.join('；')}`);

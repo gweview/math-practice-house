@@ -4,7 +4,8 @@ import { attachCreateId, shuffle } from './random-utils';
 import { createGenerationContext, createRandomSeed, type GenerationContext, type RandomSource } from '../shared/random/seeded-random';
 import { buildWorksheetBlueprint } from '../domain/worksheet/blueprint';
 import { paginateByMeasuredFootprints, questionFootprint } from '../domain/worksheet/layout-metrics';
-import { getQuestionHandler } from '../domain/questions/registry';
+import { getQuestionDefinition, getQuestionHandler } from '../domain/questions/registry';
+import { scoreQuestionDifficulty } from '../domain/questions/difficulty-score';
 import { normalizeConfig, validateConfig, validateQuestion } from './validators';
 import type { ProblemProfile, ProblemType, Question, Worksheet, WorksheetConfig } from './types';
 
@@ -16,6 +17,10 @@ export interface GenerationDirective {
   mixed?: boolean;
   relation?: '=' | '>' | '<';
   equalFraction?: boolean;
+  /** Force (true) or exclude (false) reverse-thinking items; only honored by opted-in types. */
+  reverse?: boolean;
+  /** Force single-step (1) or multi-step (>=2) items; only honored by opted-in types. */
+  steps?: number;
 }
 const QUOTA_CARRY_TYPES = new Set<ProblemType>(['addition10', 'subtraction10', 'addition100', 'subtraction100', 'addition1000', 'subtraction1000']);
 const SMALL_REGROUPING_TYPES = new Set<ProblemType>(['addition10', 'subtraction10']);
@@ -82,6 +87,26 @@ function minimumTrivialQuota(type: ProblemType, target: number, profile: Problem
   return Math.max(requested, target - nonTrivialCapacity);
 }
 
+/** One structural mode per worksheet slot. Reverse and multi-step are disjoint: no generator can produce both yet, so the two rates share the slot budget and the remainder stays forward single-step. */
+type StructuralMode = 'reverse' | 'multiStep' | 'forward';
+
+function structuralQuota(
+  count: number,
+  reverseRate: number,
+  multiStepRate: number,
+  supportReverse: boolean,
+  supportMultiStep: boolean,
+  random: RandomSource
+): StructuralMode[] {
+  const reverseCount = supportReverse ? Math.round(count * reverseRate) : 0;
+  const multiCount = supportMultiStep ? Math.min(Math.round(count * multiStepRate), count - reverseCount) : 0;
+  return shuffle([
+    ...Array<StructuralMode>(reverseCount).fill('reverse'),
+    ...Array<StructuralMode>(multiCount).fill('multiStep'),
+    ...Array<StructuralMode>(Math.max(0, count - reverseCount - multiCount)).fill('forward')
+  ], random);
+}
+
 function relationQuota(
   count: number,
   equalityRate: number,
@@ -135,6 +160,7 @@ export function generateWorksheet(input: WorksheetConfig, options: GenerateWorks
   }
 
   const questions: Question[] = [];
+  const difficultyScores = new Map<string, number>();
   const blueprint = buildWorksheetBlueprint(config);
   for (const { type, count: target } of blueprint.allocations) {
     if (target === 0) continue;
@@ -152,6 +178,10 @@ export function generateWorksheet(input: WorksheetConfig, options: GenerateWorks
       : [];
     const equalFractions = type === 'fractionComparison' ? booleanQuota(target, profile.equalityRate, [], random) : [];
     const mixedQuota = type === 'mixedAddSub' && profile.terms >= 3 ? booleanQuota(target, profile.mixedRate, [], random) : [];
+    const definition = getQuestionDefinition(type);
+    const structural = definition.directives?.reverse || definition.directives?.multiStep
+      ? structuralQuota(target, profile.reverseRate, profile.wordSteps >= 2 ? profile.multiStepRate : 0, definition.directives?.reverse === true, definition.directives?.multiStep === true, random)
+      : [];
     const quotaOrder = [
       ...shuffle(Array.from({ length: target }, (_, index) => index).filter(index => highRangeQuota[index]), random),
       ...shuffle(Array.from({ length: target }, (_, index) => index).filter(index => !highRangeQuota[index]), random)
@@ -161,14 +191,23 @@ export function generateWorksheet(input: WorksheetConfig, options: GenerateWorks
     let attempts = 0;
     while (generated < target && attempts++ < Math.max(500, target * 300)) {
       const quotaIndex = quotaOrder[generated];
-      const question = generateOne(type, config, {
+      const mode = structural[quotaIndex];
+      const directive: GenerationDirective = {
         highRange: type === 'compareSigns' && !config.allowDuplicates ? undefined : highRangeQuota[quotaIndex],
         trivial: trivialQuota[quotaIndex], carry: carryQuota[quotaIndex], mixed: mixedQuota[quotaIndex],
-        relation: relations[quotaIndex], equalFraction: equalFractions[quotaIndex]
-      }, { ...context, createId: () => '' });
+        relation: relations[quotaIndex], equalFraction: equalFractions[quotaIndex],
+        reverse: definition.directives?.reverse ? mode === 'reverse' : undefined,
+        steps: definition.directives?.multiStep ? (mode === 'multiStep' ? Math.max(2, profile.wordSteps) : 1) : undefined
+      };
+      const question = generateOne(type, config, directive, { ...context, createId: () => '' });
       const valid = validateQuestion(question, config).valid;
       const unique = config.allowDuplicates || ![...questions, ...typeQuestions].some(item => item.signature === question.signature);
-      if (valid && unique) { typeQuestions.push({ ...question, id: context.createId() }); generated++; }
+      if (valid && unique) {
+        const generatedQuestion = { ...question, id: context.createId() };
+        difficultyScores.set(generatedQuestion.id, scoreQuestionDifficulty(question, profile));
+        typeQuestions.push(generatedQuestion);
+        generated++;
+      }
     }
     if (generated < target) throw new Error(`题型 ${type} 只能生成 ${generated} 道不重复题目，请减少题量、增加题型或允许重复`);
     questions.push(...shuffle(typeQuestions, random));
@@ -176,7 +215,8 @@ export function generateWorksheet(input: WorksheetConfig, options: GenerateWorks
   const ordered = blueprint.ordering === 'random'
     ? shuffle(questions, random)
     : blueprint.ordering === 'progressive'
-      ? [...questions].sort((left, right) => Number(left.metadata?.magnitude ?? Math.max(...left.operands)) - Number(right.metadata?.magnitude ?? Math.max(...right.operands)))
+      ? [...questions].sort((left, right) => (difficultyScores.get(left.id) ?? 0) - (difficultyScores.get(right.id) ?? 0)
+        || Number(left.metadata?.magnitude ?? Math.max(...left.operands)) - Number(right.metadata?.magnitude ?? Math.max(...right.operands)))
       : questions;
   if (config.generationMode === 'pages') {
     const questionPages = paginateByMeasuredFootprints(ordered, config, question => questionFootprint(question, config));

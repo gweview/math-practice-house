@@ -34,7 +34,7 @@ describe('question registry', () => {
   });
 
   it('keeps every standard handler inside its registered rendering footprint', () => {
-    const profile: ProblemProfile = { min: 0, max: 1000, terms: 3, carryRate: .5, highRangeRate: .5, wordSteps: 2, maxFactor: 12, trivialRate: .1, equalityRate: .2, mixedRate: .4 };
+    const profile: ProblemProfile = { min: 0, max: 1000, terms: 3, carryRate: .5, highRangeRate: .5, wordSteps: 2, maxFactor: 12, trivialRate: .1, equalityRate: .2, mixedRate: .4, reverseRate: .25, multiStepRate: .3 };
     const config: WorksheetConfig = {
       stage: 'grade6', rangeMode: 'free', difficulty: 'standard', practiceMode: 'standard',
       types: QUESTION_DEFINITIONS.map(definition => definition.id), count: 1,
@@ -91,7 +91,7 @@ describe('question registry', () => {
   });
 
   it('runs every registered handler with explicit seeded context and no ambient randomness', () => {
-    const profile: ProblemProfile = { min: 0, max: 1000, terms: 3, carryRate: .5, highRangeRate: .5, wordSteps: 2, maxFactor: 12, trivialRate: .1, equalityRate: .2, mixedRate: .4 };
+    const profile: ProblemProfile = { min: 0, max: 1000, terms: 3, carryRate: .5, highRangeRate: .5, wordSteps: 2, maxFactor: 12, trivialRate: .1, equalityRate: .2, mixedRate: .4, reverseRate: .25, multiStepRate: .3 };
     const types = QUESTION_DEFINITIONS.map(definition => definition.id);
     const makeConfig = (type: ProblemType): WorksheetConfig => {
       const vertical = type.startsWith('vertical');

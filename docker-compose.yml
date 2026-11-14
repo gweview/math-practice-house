@@ -1,0 +1,81 @@
+name: math-worksheet
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: math-worksheet-web:2.0.0
+    restart: unless-stopped
+    expose:
+      - "8080"
+    networks:
+      - internal
+    read_only: true
+    tmpfs:
+      - /data:size=8m,uid=10001,gid=10001,mode=0700
+      - /config:size=4m,uid=10001,gid=10001,mode=0700
+      - /tmp:size=4m,uid=10001,gid=10001,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 64m
+    cpus: 0.25
+    pids_limit: 64
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 20s
+      timeout: 3s
+      retries: 3
+      start_period: 8s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  gateway:
+    image: math-worksheet-web:2.0.0
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    ports:
+      # Intentionally exposed on all IPv4 interfaces for persistent public access.
+      - "${BIND_ADDRESS:-0.0.0.0}:${PORT:-8088}:8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      - internal
+      - edge
+    read_only: true
+    tmpfs:
+      - /data:size=8m,uid=10001,gid=10001,mode=0700
+      - /config:size=4m,uid=10001,gid=10001,mode=0700
+      - /tmp:size=4m,uid=10001,gid=10001,mode=1777
+    user: "10001:10001"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 48m
+    cpus: 0.15
+    pids_limit: 64
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 20s
+      timeout: 3s
+      retries: 3
+      start_period: 8s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+networks:
+  internal:
+    driver: bridge
+    internal: true
+  edge:
+    driver: bridge

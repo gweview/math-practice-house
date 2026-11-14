@@ -1,0 +1,142 @@
+.sudoku-mode-content.mode-hidden{display:none}
+.sudoku-config-panel{position:relative;background:rgba(255,255,255,.96);border:1px solid #d8e8e2;border-radius:28px;padding:28px;box-shadow:0 20px 60px rgba(63,91,83,.12)}
+.sudoku-config-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);gap:16px;margin-top:22px}
+.sudoku-selection-fieldset{grid-row:span 2}
+.sudoku-selection-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;padding:9px 12px;border-radius:12px;background:#eaf7f2;color:#416c61;font-size:.84rem}
+.sudoku-selection-summary span{color:#6b7f79}
+.sudoku-profile-groups{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.sudoku-profile-group{min-width:0}
+.sudoku-profile-group h3{display:flex;align-items:center;gap:7px;margin:0 0 8px;color:#47635e;font-size:.92rem}
+.sudoku-profile-group h3 span{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:#eff8f5}
+.sudoku-profile-list{display:grid;gap:7px}
+.sudoku-profile-option{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:9px;min-height:66px;padding:9px;border:1px solid #e3e6df;border-radius:12px;background:#fff;transition:border-color .18s,background .18s,box-shadow .18s}
+.sudoku-profile-option.selected{border-color:#85bdaa;background:#f3fbf8;box-shadow:inset 0 0 0 1px #b8dbd0}
+.sudoku-profile-copy{display:grid;gap:3px;min-width:0}
+.sudoku-profile-copy strong{color:#395a53;font-size:.88rem}
+.sudoku-profile-copy span{color:#74817e;font-size:.72rem;line-height:1.4}
+.sudoku-counter{display:grid;grid-template-columns:28px 26px 28px;align-items:center;border:1px solid #d8e4df;border-radius:10px;background:#fff}
+.sudoku-counter button{display:grid;place-items:center;width:28px;height:30px;padding:0;border:0;background:transparent;color:#356a5d;font-weight:900}
+.sudoku-counter button:disabled{cursor:not-allowed;color:#b9c3c0}
+.sudoku-counter output{text-align:center;color:#274d45;font-size:.82rem;font-weight:900;font-variant-numeric:tabular-nums}
+.sudoku-setting-block{display:grid;gap:7px}
+.sudoku-setting-block+.sudoku-setting-block{margin-top:14px}
+.sudoku-setting-block>span{color:#647770;font-size:.78rem;font-weight:800}
+.sudoku-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.sudoku-preview{margin:55px 0}
+.sudoku-preview-notice{margin:0 0 16px;padding:10px 14px;border:1px solid #eccb8a;border-radius:12px;background:#fff8e8;color:#765a28;font-size:.86rem}
+.sudoku-empty{min-height:360px;border:2px dashed #bdd8cf;border-radius:28px;background:rgba(255,255,255,.75);display:grid;place-content:center;text-align:center;color:#657873}
+.sudoku-empty>span{font-size:68px}
+.sudoku-empty h3{margin:.25em;font-size:1.5rem;color:#3f625b}
+
+/* One .sudoku-sheet is one physical A4 page. Screen preview and print share this DOM. */
+.sudoku-paper-stack{display:flex;flex-direction:column;align-items:center;gap:30px}
+.sudoku-sheet{container-type:inline-size;position:relative;box-sizing:border-box;width:min(210mm,100%);min-width:0;min-height:0;aspect-ratio:210/297;padding:4.75%;background:#fff;color:#192522;box-shadow:0 12px 35px rgba(55,72,67,.17);display:flex;flex-direction:column;break-inside:avoid;page-break-inside:avoid}
+.sudoku-sheet--landscape{width:min(297mm,100%);aspect-ratio:297/210;padding:3.37%}
+.sudoku-sheet-header{flex:none;width:100%;display:flex;justify-content:space-between;align-items:center;gap:4mm;border-bottom:.7mm solid #385d55;padding-bottom:clamp(4px,1.2cqw,3.5mm);margin-bottom:clamp(4px,1.2cqw,3.5mm)}
+.sudoku-sheet-header p{margin:0 0 .6mm;color:#648078;font-size:clamp(.5rem,1.1cqw,.7rem);letter-spacing:.13em;font-weight:800}
+.sudoku-sheet-header h2{margin:0;color:#243c37;font-size:clamp(1rem,2.5cqw,1.55rem);letter-spacing:.08em}
+.sudoku-sheet-header>strong{flex:none;padding:clamp(3px,.65cqw,6px) clamp(6px,1cqw,11px);border-radius:999px;background:#eef8f4;color:#396a5e;font-size:clamp(.55rem,1.15cqw,.78rem)}
+.sudoku-student-fields{flex:none;width:100%;display:flex;justify-content:center;gap:clamp(4px,2.1cqw,7mm);flex-wrap:wrap;margin-bottom:clamp(3px,1cqw,3mm);font-size:clamp(.55rem,1.35cqw,.82rem)}
+.sudoku-student-fields span{white-space:nowrap}
+.sudoku-student-fields b{display:inline-block;width:clamp(12mm,9cqw,22mm);height:1em;border-bottom:.25mm solid currentColor;vertical-align:-.08em}
+.sudoku-sheet-grid{flex:1;min-height:0;display:grid;align-items:stretch;justify-items:stretch;gap:clamp(2px,1cqw,3mm)}
+.sudoku-sheet-grid--single{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+.sudoku-sheet--portrait .sudoku-sheet-grid--double{grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(2,minmax(0,1fr))}
+.sudoku-sheet--landscape .sudoku-sheet-grid--double{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr)}
+.sudoku-sheet-grid--quad{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr))}
+.sudoku-sheet--portrait .sudoku-sheet-grid--six{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr))}
+.sudoku-sheet--landscape .sudoku-sheet-grid--six{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr))}
+.sudoku-sheet--portrait .sudoku-sheet-grid--mixed{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1.55fr) minmax(0,1fr)}
+.sudoku-sheet--portrait .sudoku-sheet-grid--mixed .sudoku-slot--primary{grid-column:1/-1;grid-row:1}
+.sudoku-sheet--portrait .sudoku-sheet-grid--mixed .sudoku-slot--secondary{grid-row:2}
+.sudoku-sheet--landscape .sudoku-sheet-grid--mixed{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);grid-template-rows:repeat(2,minmax(0,1fr))}
+.sudoku-sheet--landscape .sudoku-sheet-grid--mixed .sudoku-slot--primary{grid-column:1;grid-row:1/-1}
+.sudoku-sheet--landscape .sudoku-sheet-grid--mixed .sudoku-slot--secondary{grid-column:2}
+.sudoku-slot{position:relative;min-width:0;min-height:0;padding:clamp(1px,.55cqw,1.7mm);border:.25mm solid #d7e3df;border-radius:clamp(4px,1cqw,3mm);background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;break-before:auto;break-after:auto;break-inside:avoid;page-break-before:auto;page-break-after:auto;page-break-inside:avoid}
+.sudoku-slot h3{flex:none;margin:0 0 clamp(2px,.45cqw,1.3mm);color:#365d54;font-size:clamp(.5rem,1.25cqw,.78rem);line-height:1.2;text-align:center;white-space:nowrap}
+.sudoku-title-start{display:none}
+.sudoku-board{container-type:inline-size;flex:none;display:grid;width:var(--sudoku-board-preview-size);height:auto;aspect-ratio:1;border:.8mm solid #172c28;background:#fff}
+.sudoku-board-4{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(4,minmax(0,1fr))}
+.sudoku-board-9{grid-template-columns:repeat(9,minmax(0,1fr));grid-template-rows:repeat(9,minmax(0,1fr))}
+.sudoku-cell{display:grid;place-items:center;min-width:0;min-height:0;border-right:.25mm solid #81918d;border-bottom:.25mm solid #81918d;font-family:"Arial Rounded MT Bold","Microsoft YaHei",sans-serif;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
+.sudoku-board-9 .sudoku-cell{font-size:3.25cqw}
+.sudoku-board-4 .sudoku-cell{font-size:9cqw}
+.sudoku-board-9 .sudoku-cell:nth-child(9n){border-right:0}
+.sudoku-board-9 .sudoku-cell:nth-child(n+73){border-bottom:0}
+.sudoku-board-9 .sudoku-cell:nth-child(9n+3),.sudoku-board-9 .sudoku-cell:nth-child(9n+6){border-right:.7mm solid #172c28}
+.sudoku-board-9 .sudoku-cell:nth-child(n+19):nth-child(-n+27),.sudoku-board-9 .sudoku-cell:nth-child(n+46):nth-child(-n+54){border-bottom:.7mm solid #172c28}
+.sudoku-board-4 .sudoku-cell:nth-child(4n){border-right:0}
+.sudoku-board-4 .sudoku-cell:nth-child(n+13){border-bottom:0}
+.sudoku-board-4 .sudoku-cell:nth-child(4n+2){border-right:.7mm solid #172c28}
+.sudoku-board-4 .sudoku-cell:nth-child(n+5):nth-child(-n+8){border-bottom:.7mm solid #172c28}
+.sudoku-cell.given{color:#172c28;font-weight:800;background:#fbfdfc}
+.sudoku-cell.solved{color:#9d3f2e;font-weight:500;font-style:italic;background:#fff9f5}
+.sudoku-meta{flex:none;display:flex;gap:clamp(3px,.7cqw,2mm);justify-content:center;flex-wrap:wrap;margin-top:clamp(2px,.45cqw,1.3mm);color:#49665f;font-size:clamp(.44rem,1cqw,.66rem);line-height:1.2}
+.sudoku-meta span{padding:clamp(1px,.25cqw,3px) clamp(3px,.5cqw,7px);border-radius:999px;background:#eff8f5;white-space:nowrap}
+.sudoku-template-six .sudoku-slot{padding:.5mm}
+.sudoku-template-six .sudoku-meta{display:none}
+.sudoku-sheet--answers.sudoku-template-quad .sudoku-meta,
+.sudoku-sheet--questions.sudoku-sheet--portrait.sudoku-template-double .sudoku-meta,
+.sudoku-sheet--questions .sudoku-sheet-grid--mixed .sudoku-slot--secondary .sudoku-meta{display:none}
+.sudoku-sheet--questions.sudoku-sheet--portrait.sudoku-template-double .sudoku-title-start{display:inline}
+.sudoku-answer-pages{display:none}
+.sudoku-answer-pages.visible-on-screen{display:flex}
+
+@media screen and (max-width:1000px){
+ .sudoku-config-grid{grid-template-columns:1fr}
+ .sudoku-selection-fieldset{grid-row:auto}
+}
+
+@media screen and (max-width:680px){
+ .sudoku-config-panel{padding:20px 14px}
+ .sudoku-profile-groups{grid-template-columns:1fr}
+ .sudoku-settings-grid{grid-template-columns:1fr 1fr}
+ .sudoku-paper-stack{gap:18px}
+ .sudoku-sheet-header{border-bottom-width:.5mm}
+ .sudoku-slot{border-radius:4px}
+}
+
+@media screen and (max-width:420px){
+ .sudoku-selection-summary{align-items:flex-start;flex-direction:column;gap:2px}
+ .sudoku-profile-option{min-height:60px}
+ .sudoku-settings-grid{grid-template-columns:1fr}
+ .sudoku-sheet-header p{display:none}
+ .sudoku-student-fields{margin-bottom:2px}
+ .sudoku-meta{margin-top:1px}
+}
+
+@media print{
+ @page sudoku-portrait{size:A4 portrait;margin:0}
+ @page sudoku-landscape{size:A4 landscape;margin:0}
+ body[data-print-target='sudoku'] .sudoku-mode-content{display:block!important}
+ body[data-print-target='math'] .sudoku-mode-content,body[data-print-target='binary-reasoning'] .sudoku-mode-content{display:none!important}
+ .sudoku-mode-content:not(.mode-hidden){display:block!important}
+ body[data-print-target='sudoku'] .math-mode-content{display:none!important}
+ body[data-print-target='math'] .sudoku-mode-content{display:none!important}
+ .sudoku-no-print{display:none!important}
+ .sudoku-mode-content:not(.mode-hidden) .sudoku-preview{margin:0}
+ .sudoku-mode-content:not(.mode-hidden) .sudoku-paper-stack{display:block}
+ .sudoku-mode-content:not(.mode-hidden) .sudoku-answer-pages{display:flex!important}
+ body[data-print-target='sudoku'] .sudoku-mode-content .sudoku-preview{margin:0}
+ body[data-print-target='sudoku'] .sudoku-mode-content .sudoku-paper-stack{display:block}
+ body[data-print-target='sudoku'] .sudoku-mode-content .sudoku-answer-pages{display:flex!important}
+ .sudoku-sheet{box-sizing:border-box;width:210mm!important;height:296mm!important;min-width:210mm;min-height:296mm;aspect-ratio:auto;padding:10mm;overflow:hidden;box-shadow:none;border:0;break-after:page;page-break-after:always}
+ .sudoku-sheet--portrait{page:sudoku-portrait}
+ .sudoku-sheet--landscape{page:sudoku-landscape;width:297mm!important;height:209mm!important;min-width:297mm;min-height:209mm;padding:10mm}
+ .sudoku-sheet--questions.sudoku-sheet--landscape.sudoku-template-mixed .sudoku-sheet-header{padding-bottom:2mm;margin-bottom:2mm}
+ .sudoku-sheet--questions.sudoku-sheet--landscape.sudoku-template-mixed .sudoku-sheet-header p{display:none}
+ .sudoku-sheet--questions.sudoku-sheet--landscape.sudoku-template-mixed .sudoku-student-fields{margin-bottom:1mm}
+ .sudoku-sheet--questions.sudoku-sheet--landscape.sudoku-template-mixed .sudoku-sheet-grid{gap:2mm}
+ .sudoku-sheet--questions.sudoku-sheet--landscape.sudoku-template-mixed .sudoku-slot--secondary{padding:1mm}
+ .sudoku-sheet--questions.sudoku-sheet--landscape.sudoku-template-mixed .sudoku-slot--secondary h3{margin-bottom:1mm}
+ .sudoku-sheet.sudoku-last-sheet{break-after:auto;page-break-after:auto}
+ .sudoku-slot{break-before:auto!important;break-after:auto!important;break-inside:avoid!important;page-break-before:auto!important;page-break-after:auto!important;page-break-inside:avoid!important}
+ .sudoku-board{width:var(--sudoku-board-size);height:var(--sudoku-board-size)}
+ .sudoku-sheet--questions .sudoku-board-9 .sudoku-cell{font-size:max(12pt,3.25cqw)}
+ .sudoku-sheet--answers .sudoku-board-9 .sudoku-cell{font-size:max(10pt,3.25cqw)}
+ .sudoku-board-4 .sudoku-cell{font-size:max(16pt,9cqw)}
+ .sudoku-cell{color:#000}
+ .sudoku-cell.solved{color:#8f2f22}
+ .sudoku-sheet-header,.sudoku-student-fields,.sudoku-meta{visibility:visible}
+ *{animation:none!important;transition:none!important;text-shadow:none!important}
+}

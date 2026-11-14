@@ -1,0 +1,147 @@
+.preview-meta{margin:.45em 0 0;color:#667873;font-size:.84rem;font-weight:700}
+.preview-stale{max-width:620px;margin:.65em 0 0;padding:8px 11px;border:1px solid #efc785;border-radius:10px;background:#fff7df;color:#855228;font-size:.82rem;font-weight:700}
+button:focus-visible,input:focus-visible,.check:has(input:focus-visible),.switch:has(input:focus-visible){outline:3px solid #247f70;outline-offset:3px}
+
+/* One math sheet is one physical A4 page. Screen and print share this DOM. */
+.paper.math-sheet{container-type:inline-size;--sheet-mm:.476190476cqw;box-sizing:border-box;width:min(210mm,100%);min-width:0;min-height:0;aspect-ratio:210/297;padding:0;display:flex;flex-direction:column;background:#fff;color:#202826;box-shadow:0 12px 35px rgba(69,61,48,.16);break-inside:avoid;page-break-inside:avoid}
+.paper.math-sheet--landscape{--sheet-mm:.336700337cqw;width:min(297mm,100%);min-height:0;aspect-ratio:297/210;padding:0}
+.math-sheet-content{box-sizing:border-box;width:100%;height:100%;padding:calc(10 * var(--sheet-mm));display:flex;flex-direction:column}
+.math-sheet .sheet-header{flex:none;margin:0 0 calc(4 * var(--sheet-mm));padding:0 0 calc(4 * var(--sheet-mm));border-bottom:max(1px,calc(.55 * var(--sheet-mm))) solid #385d55;text-align:left}
+.math-sheet .sheet-header-main{display:flex;align-items:center;justify-content:space-between;gap:calc(5 * var(--sheet-mm))}
+.math-sheet .sheet-title{min-width:0}
+.math-sheet .sheet-title p{margin:0 0 calc(.8 * var(--sheet-mm));color:#648078;font-size:max(4px,calc(2.45 * var(--sheet-mm)));font-weight:900;letter-spacing:.15em}
+.math-sheet .sheet-header h2{margin:0;color:#243c37;font-size:max(9px,calc(6.4 * var(--sheet-mm)));line-height:1.15;letter-spacing:.08em}
+.math-sheet .sheet-kind{flex:none;padding:calc(1.4 * var(--sheet-mm)) calc(3 * var(--sheet-mm));border-radius:999px;background:#eef8f4;color:#396a5e;font-size:max(5px,calc(3.2 * var(--sheet-mm)))}
+.math-sheet.answer-page .sheet-kind{background:#fff0e8;color:#a24c30}
+.math-sheet .student-fields{display:flex;justify-content:center;gap:calc(3 * var(--sheet-mm));flex-wrap:wrap;margin-top:calc(3 * var(--sheet-mm));font-size:max(5px,calc(3.45 * var(--sheet-mm)))}
+.math-sheet .student-field{white-space:nowrap}
+.math-sheet .student-fields b{display:inline-block;width:calc(18 * var(--sheet-mm));height:1em;border-bottom:max(1px,calc(.25 * var(--sheet-mm))) solid currentColor;vertical-align:-.08em;font-weight:400}
+.math-sheet .student-fields .streak-field b{width:calc(12 * var(--sheet-mm))}
+.math-sheet .answer-page-note{margin:calc(2.3 * var(--sheet-mm)) 0 0;color:#657570;font-size:max(4px,calc(3 * var(--sheet-mm)))}
+.math-sheet .sheet-seed{position:absolute;right:0;bottom:calc(-3.8 * var(--sheet-mm));color:#71817d;font-size:max(4px,calc(2.5 * var(--sheet-mm)));font-variant-numeric:tabular-nums}
+
+.math-sheet .questions{flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start;gap:calc(8 * var(--sheet-mm)) calc(7 * var(--sheet-mm))}
+.math-sheet--landscape .questions{grid-template-columns:repeat(3,minmax(0,1fr));gap:calc(7 * var(--sheet-mm))}
+.math-sheet .question{position:relative;display:flex;align-items:baseline;min-width:0;min-height:calc(11 * var(--sheet-mm));font-size:max(6px,calc(4.2 * var(--sheet-mm)));line-height:1.35;break-before:auto;break-after:auto;break-inside:avoid;page-break-before:auto;page-break-after:auto;page-break-inside:avoid}
+.font-large .math-sheet .question{min-height:calc(13 * var(--sheet-mm));font-size:max(7px,calc(5 * var(--sheet-mm)))}
+.math-sheet .question.word{grid-column:1/-1;display:block;min-height:calc(28 * var(--sheet-mm));line-height:1.65;white-space:normal}
+.font-large .math-sheet .question.word{min-height:calc(31 * var(--sheet-mm))}
+.math-sheet .question.wide{grid-column:1/-1}
+.math-sheet .question.structured{align-items:flex-start;min-height:calc(38 * var(--sheet-mm));white-space:normal}
+.math-sheet .question.structured--table{min-height:calc(31 * var(--sheet-mm))}
+.font-large .math-sheet .question.structured{min-height:calc(43 * var(--sheet-mm))}
+.font-large .math-sheet .question.structured--table{min-height:calc(36 * var(--sheet-mm))}
+.math-sheet .structured-question-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(calc(58 * var(--sheet-mm)),42%);align-items:center;gap:calc(3 * var(--sheet-mm));width:100%;min-width:0}
+.math-sheet .structured-question-body>.q-text{white-space:normal;line-height:1.55}
+.math-sheet .structured-answer-line{grid-column:1/-1;width:min(70%,calc(70 * var(--sheet-mm)));height:calc(4 * var(--sheet-mm));margin:0}
+.math-sheet .question-visual{display:block;width:100%;height:calc(27 * var(--sheet-mm));overflow:visible}
+.math-sheet .clock-visual{height:calc(30 * var(--sheet-mm))}
+.math-sheet .question-visual line,.math-sheet .question-visual path,.math-sheet .question-visual circle,.math-sheet .question-visual rect,.math-sheet .question-visual polyline{fill:none;stroke:#263b36;stroke-width:2;vector-effect:non-scaling-stroke}
+.math-sheet .question-visual text{fill:#263b36;stroke:none;font-size:14px;font-weight:700;text-anchor:middle;font-family:inherit}
+.math-sheet .number-line-visual path{fill:#263b36;stroke:none}
+.math-sheet .number-line-visual rect{fill:#fff;stroke:#51645f;stroke-width:1.5}
+.math-sheet .clock-visual .clock-hour{stroke-width:5;stroke-linecap:round}
+.math-sheet .clock-visual .clock-minute{stroke-width:3;stroke-linecap:round}
+.math-sheet .clock-visual .clock-pin{fill:#263b36}
+.math-sheet .geometry-visual .guide{stroke-dasharray:4 4;stroke-width:1.2}
+.math-sheet .chart-visual rect{fill:#dceae6;stroke:#304f47}
+.math-sheet .chart-visual polyline{stroke-width:2.5}
+.math-sheet .chart-visual circle{fill:#fff;stroke-width:2}
+.math-sheet .chart-visual .chart-unit{text-anchor:start;font-size:11px}
+.math-sheet .question-table-wrap{width:100%;overflow:hidden}
+.math-sheet .question-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:.8em;text-align:center}
+.math-sheet .question-table th,.math-sheet .question-table td{padding:calc(1.2 * var(--sheet-mm));border:max(1px,calc(.3 * var(--sheet-mm))) solid #54645f}
+.math-sheet .question-table th{background:#eef5f2;font-weight:800}
+.math-sheet .detailed-answer{grid-column:1/-1;display:flex;align-items:flex-start;gap:calc(4 * var(--sheet-mm));color:#8f3829;font-size:.83em}
+.math-sheet .detailed-answer .answer-value{margin:0;white-space:nowrap}
+.math-sheet .detailed-answer ol,.math-sheet .solution-steps{margin:0;padding-left:1.35em;color:#596763;font-size:.82em;white-space:normal}
+.math-sheet .solution-steps{flex-basis:100%;margin-top:calc(1 * var(--sheet-mm))}
+.math-sheet .q-number{flex:none;margin-right:calc(1.4 * var(--sheet-mm));font-weight:800;font-variant-numeric:tabular-nums}
+.math-sheet .q-text{min-width:0}
+.math-sheet .question:not(.word):not(.structured):not(.wide){white-space:nowrap;word-break:keep-all}
+.math-sheet .question:not(.word):not(.structured):not(.wide) .q-text{flex:0 0 auto;white-space:nowrap}
+.math-sheet .question.word .q-text{white-space:normal;overflow-wrap:anywhere}
+.math-sheet .question.structured .q-text{white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+.math-sheet .fill-box{display:inline-flex;align-items:center;justify-content:center;width:calc(16 * var(--sheet-mm));min-width:calc(16 * var(--sheet-mm));height:calc(9 * var(--sheet-mm));margin:0 calc(1.2 * var(--sheet-mm));border:max(1px,calc(.35 * var(--sheet-mm))) solid #59625f;border-radius:calc(.7 * var(--sheet-mm));vertical-align:middle;color:#a83f2c;font-weight:800;font-variant-numeric:tabular-nums}
+.math-sheet .answer-line{display:inline-block;flex:1;min-width:calc(12 * var(--sheet-mm));margin-left:calc(1.2 * var(--sheet-mm));border-bottom:max(1px,calc(.25 * var(--sheet-mm))) solid #606866}
+.math-sheet .answer-line--word{display:block;width:100%;height:calc(8 * var(--sheet-mm));margin:calc(2 * var(--sheet-mm)) 0 0;border-bottom:max(1px,calc(.25 * var(--sheet-mm))) solid #8d9794}
+.math-sheet .answer-value{margin-left:calc(2 * var(--sheet-mm));color:#a83f2c;font-weight:900}
+.math-sheet .question.word .answer-value{display:inline-block;margin:calc(1.4 * var(--sheet-mm)) 0 0 calc(2 * var(--sheet-mm));padding:calc(.5 * var(--sheet-mm)) calc(1.5 * var(--sheet-mm));border-radius:calc(1 * var(--sheet-mm));background:#fff1eb}
+.paper.math-sheet.answer-pages{display:none}
+.paper.math-sheet.answer-pages.visible-on-screen{display:flex}
+.math-sheet .compact-answer-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-rows:minmax(calc(7.6 * var(--sheet-mm)),auto);align-content:start;gap:calc(.8 * var(--sheet-mm)) calc(2 * var(--sheet-mm));font-size:max(5px,calc(3.2 * var(--sheet-mm)))}
+.math-sheet--landscape .compact-answer-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
+.math-sheet .compact-answer-item{display:flex;align-items:baseline;gap:calc(1 * var(--sheet-mm));min-width:0;padding:calc(.65 * var(--sheet-mm)) calc(1 * var(--sheet-mm));border-bottom:max(1px,calc(.18 * var(--sheet-mm))) solid #d4deda;break-inside:avoid}
+.math-sheet .compact-answer-item--long{grid-column:span 2}
+.math-sheet .compact-answer-item b{flex:none;color:#536b65;font-variant-numeric:tabular-nums}
+.math-sheet .compact-answer-item span{min-width:0;color:#8f3829;font-weight:800;overflow-wrap:anywhere}
+.math-sheet .paper-stickers{inset:calc(7 * var(--sheet-mm)) calc(8 * var(--sheet-mm)) auto;font-size:max(7px,calc(4.8 * var(--sheet-mm)))}
+
+/* Dedicated vertical worksheets use fixed rows, so eight cards always stay on one sheet. */
+.paper.math-sheet.vertical-worksheet-page .sheet-header{margin-bottom:calc(3 * var(--sheet-mm));padding-bottom:calc(3 * var(--sheet-mm))}
+.paper.math-sheet.vertical-worksheet-page .sheet-header h2{font-size:max(8px,calc(5.8 * var(--sheet-mm)))}
+.paper.math-sheet.vertical-worksheet-page .questions{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(4,minmax(0,1fr));grid-auto-rows:unset;align-content:stretch;gap:calc(4 * var(--sheet-mm)) calc(9 * var(--sheet-mm))}
+.paper.math-sheet--landscape.vertical-worksheet-page .questions{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:calc(5 * var(--sheet-mm))}
+.paper.math-sheet.vertical-worksheet-page .question.vertical,.paper.math-sheet.vertical-worksheet-page .question.long-division{height:100%;min-height:0;padding:calc(3 * var(--sheet-mm)) calc(4 * var(--sheet-mm));border:max(1px,calc(.28 * var(--sheet-mm))) solid #cfdeda;border-radius:calc(2.2 * var(--sheet-mm));align-items:flex-start;justify-content:flex-start;background:linear-gradient(180deg,#fff,#fcfefd)}
+.paper.math-sheet.vertical-worksheet-page .q-number{position:absolute;left:calc(3 * var(--sheet-mm));top:calc(2.5 * var(--sheet-mm));z-index:1;color:#435f58;font-size:.85em}
+
+.math-sheet .vertical-expression{display:grid;align-self:center;min-width:0;margin:auto;text-align:right;font-size:1.22em;line-height:1.2;font-variant-numeric:tabular-nums}
+.font-large .math-sheet .vertical-expression{font-size:1.16em}
+.math-sheet .vertical-expression>span{position:static;display:grid;grid-template-columns:1.05em repeat(var(--vertical-columns),1.05em);padding:0}
+.math-sheet .vertical-expression i{position:static;display:grid;place-items:center;font-style:normal;font-weight:800}
+.math-sheet .vertical-expression b{display:block;min-height:0;padding:0;border:0;font-weight:400}
+.math-sheet .vertical-carry-row{min-height:.75em;margin-bottom:.12em}
+.math-sheet .vertical-carry-row b{margin:0 .12em;border-bottom:1px dotted #b2c2bd}
+.math-sheet .vertical-number-row{min-height:1.28em}
+.math-sheet .vertical-second-row{padding-bottom:.12em;border-bottom:max(1px,calc(.42 * var(--sheet-mm))) solid currentColor}
+.math-sheet .vertical-result-row{min-height:1.55em;padding-top:.14em}
+.math-sheet .vertical-result-row.answered{color:#9e3929;font-weight:900}
+.math-sheet .vertical-digit{display:grid;place-items:center;min-width:0}
+
+.math-sheet .question.long-division{position:relative;display:flex;align-items:flex-start}
+.math-sheet .long-division-expression{position:static;align-self:center;display:flex;flex-direction:column;width:min(calc(46 * var(--sheet-mm)),82%);min-height:0;margin:auto;font-size:1.04em;font-variant-numeric:tabular-nums;color:#202826}
+.math-sheet .long-division-quotient{flex:none;min-height:1.45em;padding-right:calc(3 * var(--sheet-mm));text-align:right;font-weight:900}
+.math-sheet .long-division-quotient:not(.answered){background:linear-gradient(90deg,transparent 45%,#eaf0ee 45%,#eaf0ee 47%,transparent 47%) bottom right/50% 1px no-repeat}
+.math-sheet .long-division-row{display:grid;grid-template-columns:auto minmax(calc(24 * var(--sheet-mm)),1fr);align-items:start}
+.math-sheet .long-division-divisor{padding:calc(1.5 * var(--sheet-mm)) calc(2.5 * var(--sheet-mm)) 0 0;text-align:right}
+.math-sheet .long-division-dividend{min-height:1.8em;padding:calc(1.5 * var(--sheet-mm)) calc(3 * var(--sheet-mm));border-top:max(1px,calc(.4 * var(--sheet-mm))) solid currentColor;border-left:max(1px,calc(.4 * var(--sheet-mm))) solid currentColor;border-radius:calc(1.2 * var(--sheet-mm)) 0 0;text-align:right}
+.math-sheet .long-division-work{display:grid;gap:calc(1.4 * var(--sheet-mm));margin:calc(1.2 * var(--sheet-mm)) 0 0 calc(11 * var(--sheet-mm))}
+.math-sheet .long-division-work i{display:block;height:calc(3.4 * var(--sheet-mm));border-bottom:1px dotted #aebbb7}
+.math-sheet .long-division-result{display:flex;align-items:end;justify-content:flex-end;min-height:1.4em;margin-top:calc(1.2 * var(--sheet-mm));font-size:.7em;font-weight:700;color:#687873}
+.math-sheet .long-division-result b{display:inline-block;width:calc(10 * var(--sheet-mm));height:1em;margin-left:calc(1 * var(--sheet-mm));border-bottom:1px solid currentColor}
+.math-sheet .long-division-result.answered{color:#9e3929;font-size:.76em;font-weight:900}
+.math-sheet .long-division-result.answered b{display:none}
+.math-sheet .question.long-division.answered .long-division-work{opacity:.32}
+.math-sheet .fraction-visual rect{fill:#fff;stroke:currentColor;stroke-width:1.5}
+.math-sheet .fraction-visual rect.shaded{fill:#202826}
+.math-sheet .question-multipart{margin:.3em 0;padding-left:1.4em;line-height:1.8}
+
+@media screen and (max-width:800px){
+ .preview{margin-top:36px}
+ .paper-stack{gap:18px}
+ .preview-meta,.preview-stale{font-size:.76rem}
+ /* Keep the physical-page preview usable at 320px: the planner budgets
+    millimetres, while the screen scales the A4 sheet below its natural size. */
+ .math-sheet .questions{gap:calc(3 * var(--sheet-mm)) calc(4 * var(--sheet-mm))}
+ .math-sheet .structured-question-body{grid-template-columns:minmax(0,1fr) minmax(42%,1fr)}
+}
+
+@media print{
+ @page math-portrait{size:A4 portrait;margin:0}
+ @page math-landscape{size:A4 landscape;margin:0}
+ body[data-print-target='math'] .math-mode-content{display:block!important}
+ body[data-print-target='math'] .sudoku-mode-content,body[data-print-target='math'] .binary-mode-content{display:none!important}
+ body[data-print-target='sudoku'] .math-mode-content,body[data-print-target='binary-reasoning'] .math-mode-content{display:none!important}
+ .math-mode-content:not(.mode-hidden) .preview{margin:0}
+ .math-mode-content:not(.mode-hidden) .paper-stack{display:block}
+ body[data-print-target='math'] .math-mode-content .preview{margin:0}
+ body[data-print-target='math'] .math-mode-content .paper-stack{display:block}
+ .paper.math-sheet{page:math-portrait;--sheet-mm:1mm;width:210mm!important;height:296mm!important;min-width:210mm;min-height:296mm!important;aspect-ratio:auto;padding:0!important;margin:0;overflow:hidden;box-shadow:none;border:0;break-before:auto!important;break-after:page!important;break-inside:avoid-page!important;page-break-before:auto!important;page-break-after:always!important;page-break-inside:avoid!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .paper.math-sheet--landscape{page:math-landscape;width:297mm!important;height:209mm!important;min-width:297mm;min-height:209mm!important;padding:0!important}
+ .math-sheet-content{padding:10mm}
+ .paper.math-sheet.answer-page{break-before:auto!important;page-break-before:auto!important}
+ .paper.math-sheet.answer-pages{display:flex!important}
+ .paper.math-sheet.math-last-sheet{break-after:auto!important;page-break-after:auto!important}
+ .math-sheet .question{break-before:auto!important;break-after:auto!important;break-inside:avoid!important;page-break-before:auto!important;page-break-after:auto!important;page-break-inside:avoid!important;color:#000}
+ .math-sheet .answer-line,.math-sheet .fill-box{border-color:#000}
+}

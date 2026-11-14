@@ -1,0 +1,17 @@
+:8080 {
+  encode zstd gzip
+  header {
+    Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; manifest-src 'self'"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    -Server
+  }
+  reverse_proxy web:8080
+  log {
+    output stdout
+    format console
+  }
+}

@@ -1,10 +1,8 @@
 node_modules/
 dist/
-*.zip
-__pycache__/
-*.py[cod]
+coverage/
 .env
-.env.*
-*.pem
-*.key
-artifacts/
+*.log
+*.tsbuildinfo
+.hermes/
+.DS_Store

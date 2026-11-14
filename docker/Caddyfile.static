@@ -1,0 +1,18 @@
+:8080 {
+  encode zstd gzip
+  root * /srv
+
+  handle /health {
+    respond "ok" 200
+  }
+
+  handle {
+    try_files {path} /index.html
+    file_server
+  }
+
+  log {
+    output stdout
+    format console
+  }
+}

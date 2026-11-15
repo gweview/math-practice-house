@@ -7,6 +7,8 @@ import { generateChainAddition } from '../src/question-types/calculation/basic';
 import { generateSameDenominatorFraction } from '../src/question-types/calculation/basics-plus';
 import { generateMultiplication, generateTwoDigitByTwoMultiplication } from '../src/question-types/calculation/multiplication';
 import { generateCompareSigns, generateComparison } from '../src/question-types/concept/number-sense';
+import { generateOddEven } from '../src/question-types/concept/early-number';
+import { generatePolygonPerimeter } from '../src/question-types/geometry-measurement/polygon-perimeter';
 import type { QuestionGenerationInput } from '../src/domain/questions/contracts';
 import type { ProblemProfile } from '../src/domain/questions/model';
 import type { WorksheetConfig } from '../src/domain/worksheet/config';
@@ -140,5 +142,31 @@ describe('isomorphic dedup signatures', () => {
       ...config, stage: 'grade1', rangeMode: 'curriculum', types: ['addition10'],
       count: 37, allowDuplicates: false
     }, { seed: 'addition10-overflow' })).toThrow(/只能生成/);
+  });
+
+  it('canonicalizes oddEven option sets and polygonPerimeter triangle/quadrilateral side orders', () => {
+    let sawFind = 0;
+    for (let i = 0; i < 100; i++) {
+      const question = generateOddEven(inputFor('oddEven', `odd-even-${i}`, profile({ max: 20 })));
+      if (question.metadata?.form === 'find') {
+        sawFind++;
+        const sorted = [...question.operands].sort((left, right) => left - right).join(',');
+        expect(question.signature).toBe(`oddEven:find:${String(question.metadata?.parity)}:${sorted}`);
+      }
+    }
+    expect(sawFind).toBeGreaterThan(10);
+
+    let sawPolygon = 0;
+    for (let i = 0; i < 100; i++) {
+      const question = generatePolygonPerimeter(inputFor('polygonPerimeter', `poly-${i}`, profile({ max: 50 })));
+      const form = String(question.metadata?.form);
+      const unit = String(question.metadata?.unit);
+      if (form === 'triangle' || form === 'quadrilateral') {
+        sawPolygon++;
+        const sorted = [...question.operands].sort((left, right) => left - right).join(',');
+        expect(question.signature).toBe(`polygonPerimeter:${form}:${unit}:${sorted}`);
+      }
+    }
+    expect(sawPolygon).toBeGreaterThan(10);
   });
 });

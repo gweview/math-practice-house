@@ -60,10 +60,12 @@ directives: { reverse: true, multiStep: true }
 
 难度分**不存进题目对象**：各题型的严格校验器会精确比对题目结构，存入的额外字段会导致复验失败。组卷器在生成时用 side map 暂存分数，供 `progressive`（渐难）排序使用；之后任何时候都可从题目 + 档案重新算出同一分数。
 
-## 4. 本阶段改动与未做事项
+## 4. Phase C 升级（内容灵活性、分题型难度档案与混合难度组卷）
 
-已做：上述两个维度、分类配额、`wordProblem` 接入、难度分与渐难排序（原先只按数字大小排序）。测试：`tests/difficulty-model.test.ts`（12 个），全量 573 个测试通过。
+已在 Phase B（生成器框架升级）完成：竖式模式并入同一难度体系、基于约束的采样器、同构签名去重。见 `GENERATOR_FRAMEWORK.md`。
 
-未做（后续阶段）：其他题型接入指令（填空、比较类优先）、逆向多步复合语义、难度分持久化（需先放宽校验器）。
-
-已在 Phase B（生成器框架升级）完成：竖式模式并入同一难度体系、基于约束的采样器。见 `GENERATOR_FRAMEWORK.md`。
+已在 Phase C 完成：
+1. **修复 `resolveProblemProfile` 自定义 `max` 解析**：支持通过 `difficultyProfiles(max, { tiers })` 为任意档位声明独立的 `max` 与比例参数，不再被 `standard.max * RANGE_FACTOR` 硬覆盖。
+2. **配额指令（`directives`）扩展到更多题型**：除 `wordProblem` 外，`fillBlank`、`multiplicationBlank`、`multiplicativeComparison`、`moneySense` 已接入 `reverse` 配额指令；`generateWordProblem` 改为确定性紧边界构造，彻底消除递归重试。
+3. **难度分（`scoreQuestionDifficulty`）升级**：新增 `+0.15` 逆向思维结构加分（`isReverseQuestion`），并通过 `effectiveQuestionMagnitude` 修正分币单位缩放（`moneyCalculation`/`budgetPlan`）与非数值型视觉/索引操作数（`shapeRecognition`、`likelihoodLanguage` 等）导致的量级失真。
+4. **混合难度组卷与分题型难度覆盖**：`WorksheetConfig` 新增 `difficultyDistribution`（按权重将题量分配到多个难度档位）与 `typeDifficulties`（按题型单独指定难度），配合 `progressive` 排序实现真正由易到难的梯度卷。

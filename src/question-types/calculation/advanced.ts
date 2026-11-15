@@ -155,7 +155,7 @@ function commonErrors(question: Question, type: AdvancedType, config: WorksheetC
   const errors: string[] = [];
   if (!question || question.type !== type) return [`校验器题型不匹配：${type}`];
   if (!Array.isArray(question.operands) || question.operands.some(value => !Number.isFinite(value))) errors.push('操作数无效');
-  const maximum = definition?.difficultyProfiles.standard?.max;
+  const maximum = definition?.difficultyProfiles[config.difficulty]?.max ?? definition?.difficultyProfiles.standard?.max;
   if (Array.isArray(question.operands)) {
     if (Number.isFinite(maximum) && question.operands.some(value => value > Number(maximum))) errors.push('题目超过该题型难度上限');
     if (config.rangeMode === 'curriculum' && question.operands.some(value => value > CURRICULUM_MAXIMUMS[config.stage])) errors.push('题目超过当前学习阶段范围');

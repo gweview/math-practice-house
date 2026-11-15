@@ -79,11 +79,14 @@ export function generatePolygonPerimeter(input: QuestionGenerationInput): Questi
     sides = [waist, base];
   }
   const answer = perimeterAnswer(form, sides);
+  const canonicalSides = form === 'triangle' || form === 'quadrilateral'
+    ? [...sides].sort((left, right) => left - right)
+    : sides;
   const question: Question = {
     id: input.createId(), type: 'polygonPerimeter',
     text: perimeterText(form, sides, unit),
     answer, operands: sides, layout: 'word',
-    signature: `polygonPerimeter:${form}:${unit}:${sides.join(',')}`,
+    signature: `polygonPerimeter:${form}:${unit}:${canonicalSides.join(',')}`,
     metadata: { form, unit },
     answerDetails: { display: `${answer} ${unit}`, unit, steps: perimeterSteps(form, sides, unit) }
   };

@@ -124,8 +124,9 @@ export function generateOddEven(input: QuestionGenerationInput): Question {
   const others = pool.filter(value => PARITY_LABEL(value) !== target).slice(0, 4 - targets.length);
   const options = shuffle([...targets, ...others], input.random);
   const answer = options.filter(value => PARITY_LABEL(value) === target).join('，');
+  const sortedOptions = [...options].sort((left, right) => left - right);
   return makeQuestion(input, 'oddEven', `圈出下面的${target}：${options.join('　')}`, answer, options, {
-    layout: 'wide', metadata: { form: 'find', parity: target }, signature: `oddEven:find:${target}:${options.join(',')}`
+    layout: 'wide', metadata: { form: 'find', parity: target }, signature: `oddEven:find:${target}:${sortedOptions.join(',')}`
   });
 }
 
@@ -215,7 +216,14 @@ function moneyForms(difficulty: WorksheetConfig['difficulty']): MoneyForm[] {
 
 export function generateMoneySense(input: QuestionGenerationInput): Question {
   const max = maxFor(input);
-  const form = pick(moneyForms(input.config.difficulty), input.random);
+  const baseForms = moneyForms(input.config.difficulty);
+  const directiveReverse = input.directive?.reverse;
+  const candidateForms = directiveReverse === true && max >= 21 && baseForms.includes('jiao-split')
+    ? (['jiao-split'] as const)
+    : directiveReverse === false
+      ? baseForms.filter(item => item !== 'jiao-split')
+      : baseForms;
+  const form = pick(candidateForms.length ? candidateForms : baseForms, input.random);
   if (form === 'yuan-jiao-to-jiao') {
     const yuan = randomInt(1, Math.max(1, Math.min(max, 50)), input.random);
     const jiao = randomInt(1, 9, input.random);

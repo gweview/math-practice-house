@@ -34,8 +34,18 @@ export function resolveProblemProfile(
   const standard = profileFor(definition, 'standard');
   const curriculumCap = rangeMode === 'curriculum' ? CURRICULUM_MAXIMUMS[stage] : standard.max;
   const cappedMax = Math.min(standard.max, curriculumCap);
-  const minimumMax = Math.min(cappedMax, configured.minimumMax ?? standard.minimumMax ?? 5);
-  const max = Math.max(minimumMax, Math.round(cappedMax * RANGE_FACTOR[difficulty]));
+  const defaultScaledMax = Math.max(1, Math.round(standard.max * RANGE_FACTOR[difficulty]));
+  const hasCustomMax = configured.max !== standard.max && configured.max !== defaultScaledMax;
+  const rawTargetMax = hasCustomMax
+    ? (rangeMode === 'curriculum'
+      ? (standard.max > curriculumCap
+        ? Math.min(curriculumCap, Math.max(1, Math.round(configured.max * (curriculumCap / standard.max))))
+        : Math.min(configured.max, curriculumCap))
+      : configured.max)
+    : Math.round(cappedMax * RANGE_FACTOR[difficulty]);
+  const minimumCeiling = hasCustomMax ? (rangeMode === 'curriculum' ? curriculumCap : rawTargetMax) : cappedMax;
+  const minimumMax = Math.min(minimumCeiling, configured.minimumMax ?? standard.minimumMax ?? 5);
+  const max = Math.max(minimumMax, rawTargetMax);
   const cap = COMPLEXITY_CAP[stage];
   const maxFactor = rangeMode === 'curriculum'
     ? Math.min(configured.maxFactor, stage === 'preschool' || stage === 'grade1' ? 5 : 9)

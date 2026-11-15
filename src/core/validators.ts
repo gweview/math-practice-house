@@ -39,6 +39,22 @@ export function validateConfig(config: WorksheetConfig): { valid: boolean; error
   if (!Number.isFinite(config.count) || config.count < minimumCount || config.count > 100) errors.push(`题目数量必须为 ${minimumCount}～100`); if (!Number.isFinite(config.verticalPages) || config.verticalPages < 1 || config.verticalPages > MAX_VERTICAL_PAGES) errors.push(`竖式页数必须为 1～${MAX_VERTICAL_PAGES}`);
   if (!['curriculum', 'free'].includes(config.rangeMode)) errors.push('出题范围模式无效'); if (!['portrait', 'landscape'].includes(config.orientation)) errors.push('页面方向无效'); if (!['standard', 'large'].includes(config.fontSize)) errors.push('字体设置无效');
   if (config.generationMode && !['count', 'pages'].includes(config.generationMode)) errors.push('出题数量模式无效'); if (config.generationMode === 'pages' && ![1, 2].includes(Number(config.pageTarget))) errors.push('纸张目标无效'); if (config.answerMode && !['none', 'compact', 'detailed'].includes(config.answerMode)) errors.push('答案页模式无效'); if (config.ordering && !['random', 'grouped', 'progressive'].includes(config.ordering)) errors.push('题目排序方式无效');
+  if (config.typeDifficulties !== undefined) {
+    if (!config.typeDifficulties || typeof config.typeDifficulties !== 'object' || Array.isArray(config.typeDifficulties)
+      || Object.entries(config.typeDifficulties).some(([type, level]) => !isRegisteredProblemType(type) || !DIFFICULTIES.includes(String(level)))) {
+      errors.push('题型难度设置无效');
+    }
+  }
+  if (config.difficultyDistribution !== undefined) {
+    if (!config.difficultyDistribution || typeof config.difficultyDistribution !== 'object' || Array.isArray(config.difficultyDistribution)) {
+      errors.push('混合难度比例无效');
+    } else {
+      const entries = Object.entries(config.difficultyDistribution);
+      const invalidEntry = entries.some(([level, weight]) => !DIFFICULTIES.includes(level) || typeof weight !== 'number' || !Number.isFinite(weight) || weight < 0);
+      const totalWeight = entries.reduce((sum, [, weight]) => sum + (typeof weight === 'number' && Number.isFinite(weight) && weight > 0 ? weight : 0), 0);
+      if (invalidEntry || (entries.length > 0 && totalWeight <= 0)) errors.push('混合难度比例无效');
+    }
+  }
   if (config.practiceMode !== 'standard') {
     const operations = Array.isArray(config.verticalOperations) ? config.verticalOperations : []; const allowed: VerticalOperation[] = config.practiceMode === 'verticalAddSub' ? ['addition', 'subtraction'] : ['multiplication', 'division'];
     if (!operations.length) errors.push('请至少选择一种竖式运算'); else if (operations.some(operation => !VERTICAL_OPERATIONS.includes(operation) || !allowed.includes(operation))) errors.push('竖式运算与练习模式不一致'); if (config.count !== config.verticalPages * VERTICAL_PAGE_SIZE) errors.push(`竖式练习必须每页 ${VERTICAL_PAGE_SIZE} 题`);

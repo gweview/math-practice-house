@@ -22,7 +22,8 @@ export function generateFillBlank(input: QuestionGenerationInput): Question {
     input.profile.maxFactor,
     Number.isFinite(highRangeRate) ? highRangeRate : input.profile.highRangeRate,
     !['preschool', 'grade1'].includes(input.config.stage),
-    randomWithId(input)
+    randomWithId(input),
+    typeof input.directive?.reverse === 'boolean' ? input.directive.reverse : undefined
   );
 }
 
@@ -30,7 +31,9 @@ export function generateMultiplicationBlank(input: QuestionGenerationInput): Que
   const random = input.random;
   const factor = randomInt(2, Math.max(2, input.profile.maxFactor), random);
   const other = randomInt(2, Math.max(2, input.profile.maxFactor), random);
-  const reverse = random() < .5;
+  const reverse = input.directive?.reverse === undefined
+    ? random() < .5
+    : Boolean(input.directive.reverse);
   return {
     id: input.createId(), type: 'multiplicationBlank',
     text: reverse ? `${factor * other} ÷ □ = ${factor}` : `${factor} × □ = ${factor * other}`,
@@ -140,7 +143,7 @@ function curriculumMaximum(config: WorksheetConfig): number {
 
 function rangeErrors(question: Question, config: WorksheetConfig, definition?: QuestionDefinition): string[] {
   const errors: string[] = [];
-  const maximum = definition?.difficultyProfiles.standard?.max;
+  const maximum = definition?.difficultyProfiles[config.difficulty]?.max ?? definition?.difficultyProfiles.standard?.max;
   if (Number.isFinite(maximum) && question.operands.some(value => value > (maximum as number))) errors.push('题目超过该题型难度上限');
   const cap = curriculumMaximum(config);
   if (question.operands.some(value => value > cap)) errors.push('题目超过当前学习阶段范围');

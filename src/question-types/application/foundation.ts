@@ -126,16 +126,53 @@ function selectWordSemantics(input: QuestionGenerationInput): readonly WordSeman
   return available;
 }
 export function generateWordProblem(input: QuestionGenerationInput): Question {
-  const semantic = choose(selectWordSemantics(input), input.random); const entity = choose(WORD_ENTITIES, input.random); const templateIndex = int(0, 7, input.random); const cap = Math.max(2, capFor(input, 'wordProblem')); const base = int(2, Math.max(2, Math.floor(Math.min(cap, 80) * .6)), input.random);
+  const semantic = choose(selectWordSemantics(input), input.random); const entity = choose(WORD_ENTITIES, input.random); const templateIndex = int(0, 7, input.random); const cap = Math.max(2, capFor(input, 'wordProblem'));
+  const baseCeiling = Math.max(2, Math.floor(Math.min(cap, Math.max(80, Math.floor(cap * .5))) * .6));
+  const baseFloor = input.directive?.highRange ? Math.max(2, Math.floor(baseCeiling * .5)) : 2;
+  const base = int(baseFloor, baseCeiling, input.random);
   let operands: number[]; let answer: number;
   if (semantic === 'combine' || semantic === 'decrease' || semantic === 'difference') { const b = int(1, Math.max(1, Math.min(base - 1, cap - base)), input.random); operands = semantic === 'combine' ? [base, b] : [base + b, b]; answer = wordSolve(semantic, operands) as number; }
   else if (semantic === 'unknown-start') { const removed = int(1, Math.max(1, Math.min(20, cap - base)), input.random); operands = [base, removed]; answer = base + removed; }
   else if (semantic === 'unknown-change') { const final = base + int(1, Math.max(1, Math.min(20, cap - base)), input.random); operands = [base, final]; answer = final - base; }
   else if (semantic === 'equal-groups') { const each = int(2, Math.min(input.profile.maxFactor, 9), input.random); const groups = int(2, Math.max(2, Math.min(10, Math.floor(cap / each))), input.random); operands = [groups, each]; answer = groups * each; }
   else if (semantic === 'sharing' || semantic === 'grouping') { const groups = int(2, Math.min(9, input.profile.maxFactor), input.random); const each = int(2, Math.max(2, Math.min(20, Math.floor(cap / groups))), input.random); operands = semantic === 'sharing' ? [groups * each, groups] : [groups * each, each]; answer = wordSolve(semantic, operands) as number; }
-  else if (semantic === 'groups-plus' || semantic === 'groups-minus') { const each = int(2, 8, input.random); const groups = int(2, Math.max(2, Math.floor(cap / each)), input.random); const extra = semantic === 'groups-minus' ? int(1, Math.max(1, groups * each - 1), input.random) : int(1, 12, input.random); operands = [groups, each, extra]; answer = wordSolve(semantic, operands) as number; if (answer <= 0 || answer > cap) return generateWordProblem(input); }
-  else if (semantic === 'add-then-subtract' || semantic === 'subtract-then-add') { const b = int(1, 10, input.random); const c = int(1, semantic === 'add-then-subtract' ? base + b - 1 : base - 1, input.random); operands = [base, b, c]; answer = wordSolve(semantic, operands) as number; if (answer <= 0 || answer > cap) return generateWordProblem(input); }
-  else { const b = int(1, 8, input.random); const c = int(1, base + b - 1, input.random); const d = int(1, 8, input.random); operands = [base, b, c, d]; answer = wordSolve(semantic, operands) as number; if (answer <= 0 || answer > cap) return generateWordProblem(input); }
+  else if (semantic === 'groups-plus' || semantic === 'groups-minus') {
+    const productCap = semantic === 'groups-plus' ? Math.max(4, cap - 1) : Math.max(4, cap);
+    const each = int(2, Math.max(2, Math.min(8, Math.floor(productCap / 2))), input.random);
+    const groups = int(2, Math.max(2, Math.floor(productCap / each)), input.random);
+    const product = groups * each;
+    const extra = semantic === 'groups-minus'
+      ? int(1, Math.max(1, product - 1), input.random)
+      : int(1, Math.max(1, Math.min(12, cap - product)), input.random);
+    operands = [groups, each, extra];
+    answer = wordSolve(semantic, operands) as number;
+  }
+  else if (semantic === 'add-then-subtract') {
+    const a = Math.max(2, Math.min(base, cap - 1));
+    const b = int(1, Math.max(1, Math.min(10, cap - 1)), input.random);
+    const cMin = Math.max(1, a + b - cap);
+    const cMax = Math.max(cMin, a + b - 1);
+    const c = int(cMin, cMax, input.random);
+    operands = [a, b, c];
+    answer = wordSolve(semantic, operands) as number;
+  }
+  else if (semantic === 'subtract-then-add') {
+    const a = Math.max(2, Math.min(base, cap - 1));
+    const b = int(1, Math.max(1, a - 1), input.random);
+    const c = int(1, Math.max(1, Math.min(10, cap - (a - b))), input.random);
+    operands = [a, b, c];
+    answer = wordSolve(semantic, operands) as number;
+  }
+  else {
+    const a = Math.max(2, Math.min(base, Math.max(2, cap - 2)));
+    const b = int(1, Math.max(1, Math.min(8, cap - 1)), input.random);
+    const d = int(1, Math.max(1, Math.min(8, Math.max(1, cap - 1))), input.random);
+    const cMin = Math.max(1, a + b + d - cap);
+    const cMax = Math.max(cMin, a + b - 1);
+    const c = int(cMin, cMax, input.random);
+    operands = [a, b, c, d];
+    answer = wordSolve(semantic, operands) as number;
+  }
   const text = wordText(semantic, templateIndex, entity, operands); const unit = entity.unit; return make(input, 'wordProblem', text, answer, operands, { operators: wordOps[semantic], metadata: { semantic, templateIndex, entity: entity.name, unit, steps: wordOps[semantic].length }, answerDetails: { display: `${answer} ${unit}`, unit, steps: [wordStep(operands, wordOps[semantic], answer)] } });
 }
 export function solveWordProblem(question: Question): number | undefined { const semantic = question.metadata?.semantic; if (!isWordSemantic(semantic) || !Array.isArray(question.operands) || question.operands.length !== wordOperandCount(semantic) || question.operands.some(value => !Number.isFinite(value) || !Number.isInteger(value) || value <= 0)) return undefined; const answer = wordSolve(semantic, question.operands) as number; return (semantic === 'sharing' || semantic === 'grouping') && (!Number.isInteger(answer) || answer <= 0) ? undefined : Number.isFinite(answer) && answer > 0 ? answer : undefined; }

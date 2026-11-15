@@ -33,7 +33,8 @@ export function generateFillBlank(
   maxFactor = 9,
   highRangeRate = .5,
   allowMulDiv = true,
-  random: RandomSource = Math.random
+  random: RandomSource = Math.random,
+  reverse?: boolean
 ): Question {
   const operations: Record<Difficulty, FillOperator[]> = {
     entry: ['+'],
@@ -51,7 +52,13 @@ export function generateFillBlank(
   };
   const availableOperations = allowMulDiv ? operations[difficulty] : operations[difficulty].filter(op => op === '+' || op === '-');
   const op = pick(availableOperations, random);
-  const position = pick(positions[difficulty], random);
+  const reversePositions = positions[difficulty].filter((item): item is Exclude<BlankPosition, 'result'> => item !== 'result');
+  const candidatePositions: BlankPosition[] = reverse === true
+    ? (reversePositions.length ? reversePositions : ['first', 'second'])
+    : reverse === false
+      ? ['result']
+      : positions[difficulty];
+  const position = pick(candidatePositions, random);
   const [a, b, result] = buildExpression(max, maxFactor, op, highRangeRate, random);
   let text: string;
   let answer: number | string;

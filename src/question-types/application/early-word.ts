@@ -176,7 +176,12 @@ export function generateMultiplicativeComparison(input: QuestionGenerationInput)
   const mult = randomInt(2, 9, input.random);
   const contextIndex = randomInt(0, TIMES_CONTEXTS.length - 1, input.random);
   const context = TIMES_CONTEXTS[contextIndex];
-  const form: TimesForm = input.random() < .5 ? 'how-many-times' : 'times-value';
+  const directiveReverse = input.directive?.reverse;
+  const form: TimesForm = directiveReverse === true
+    ? 'how-many-times'
+    : directiveReverse === false
+      ? 'times-value'
+      : input.random() < .5 ? 'how-many-times' : 'times-value';
   if (form === 'how-many-times') {
     return makeQuestion(input, 'multiplicativeComparison', timesText(form, context, base, mult), mult, [base, mult], {
       metadata: { form, context: contextIndex },
@@ -221,7 +226,7 @@ export const validateMultiplicativeComparison: QuestionValidator = gated('grade3
 
 export const EARLY_WORD_QUESTION_DEFINITIONS: readonly QuestionDefinition[] = [
   questionDefinition({ id: 'fractionOfAmount', label: '求一个数的几分之几', group: 'fill-application', domain: 'integrated-practice', allowedGrades: GRADE_3_PLUS, recommendedGrades: GRADE_3_PLUS, renderKind: 'word', practice: 'standard', footprint: WORD, contentCategory: 'application', difficultyProfiles: difficultyProfiles(96), generate: generateFractionOfAmount, validate: validateFractionOfAmount }),
-  questionDefinition({ id: 'multiplicativeComparison', label: '倍的认识', group: 'fill-application', domain: 'integrated-practice', allowedGrades: GRADE_3_PLUS, recommendedGrades: GRADE_3_PLUS, renderKind: 'word', practice: 'standard', footprint: WORD, contentCategory: 'application', difficultyProfiles: difficultyProfiles(100), generate: generateMultiplicativeComparison, validate: validateMultiplicativeComparison })
+  questionDefinition({ id: 'multiplicativeComparison', label: '倍的认识', group: 'fill-application', domain: 'integrated-practice', allowedGrades: GRADE_3_PLUS, recommendedGrades: GRADE_3_PLUS, renderKind: 'word', practice: 'standard', footprint: WORD, contentCategory: 'application', difficultyProfiles: difficultyProfiles(100), directives: { reverse: true }, generate: generateMultiplicativeComparison, validate: validateMultiplicativeComparison })
 ];
 
 export type { EarlyWordType };

@@ -29,17 +29,28 @@ export const MULTIPART: PrintFootprint = VISUAL;
 export interface DifficultyProfileOptions {
   minimumMax?: number;
   minimumOperand?: number;
+  tiers?: Partial<Record<Difficulty, number | Partial<DifficultyProfile>>>;
 }
 
 export function difficultyProfiles(max: number, options: DifficultyProfileOptions = {}): Readonly<Partial<Record<Difficulty, DifficultyProfile>>> {
   const scale = (factor: number) => Math.max(1, Math.round(max * factor));
-  return {
+  const base: Record<Difficulty, DifficultyProfile> = {
     entry: { max: scale(.3), minimumMax: options.minimumMax, minimumOperand: options.minimumOperand, terms: 2, carryRate: 0, highRangeRate: .15, wordSteps: 1, maxFactor: 5, trivialRate: .22, equalityRate: .25, mixedRate: 0, reverseRate: 0, multiStepRate: 0 },
     easy: { max: scale(.55), minimumMax: options.minimumMax, minimumOperand: options.minimumOperand, terms: 2, carryRate: .2, highRangeRate: .3, wordSteps: 1, maxFactor: 6, trivialRate: .14, equalityRate: .2, mixedRate: .1, reverseRate: .1, multiStepRate: .1 },
     standard: { max, minimumMax: options.minimumMax, minimumOperand: options.minimumOperand, terms: 3, carryRate: .5, highRangeRate: .5, wordSteps: 1, maxFactor: 9, trivialRate: .08, equalityRate: .2, mixedRate: .4, reverseRate: .25, multiStepRate: .3 },
     advanced: { max, minimumMax: options.minimumMax, minimumOperand: options.minimumOperand, terms: 3, carryRate: .75, highRangeRate: .7, wordSteps: 2, maxFactor: 9, trivialRate: .03, equalityRate: .2, mixedRate: .7, reverseRate: .35, multiStepRate: .5 },
     challenge: { max, minimumMax: options.minimumMax, minimumOperand: options.minimumOperand, terms: 4, carryRate: .9, highRangeRate: .85, wordSteps: 3, maxFactor: 12, trivialRate: 0, equalityRate: .2, mixedRate: .9, reverseRate: .45, multiStepRate: .55 }
   };
+  if (!options.tiers) return base;
+  for (const level of ALL_DIFFICULTIES) {
+    const custom = options.tiers[level];
+    if (typeof custom === 'number') {
+      base[level] = { ...base[level], max: custom };
+    } else if (custom && typeof custom === 'object') {
+      base[level] = { ...base[level], ...custom };
+    }
+  }
+  return base;
 }
 
 type DefinitionInput = Omit<QuestionDefinition, 'description' | 'skills' | 'recommendedGrades' | 'difficulties' | 'footprint'> & {

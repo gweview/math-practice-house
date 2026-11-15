@@ -5,9 +5,47 @@ import { createGenerationContext, createRandomSeed, type GenerationContext, type
 import { buildWorksheetBlueprint } from '../domain/worksheet/blueprint';
 import { paginateByMeasuredFootprints, questionFootprint } from '../domain/worksheet/layout-metrics';
 import { getQuestionDefinition, getQuestionHandler } from '../domain/questions/registry';
-import { scoreQuestionDifficulty } from '../domain/questions/difficulty-score';
+import { effectiveQuestionMagnitude, scoreQuestionDifficulty } from '../domain/questions/difficulty-score';
 import { normalizeConfig, validateConfig, validateQuestion } from './validators';
-import type { ProblemProfile, ProblemType, Question, VerticalOperation, Worksheet, WorksheetConfig } from './types';
+import type { Difficulty, ProblemProfile, ProblemType, Question, VerticalOperation, Worksheet, WorksheetConfig } from './types';
+
+const DIFFICULTY_LEVELS: readonly Difficulty[] = ['entry', 'easy', 'standard', 'advanced', 'challenge'];
+
+export interface DifficultySlice {
+  difficulty: Difficulty;
+  count: number;
+}
+
+/**
+ * Deterministic largest-remainder allocation of a slot count across difficulty
+ * tiers. Returns a single slice at `fallback` when no distribution is active.
+ */
+export function allocateDifficultyCounts(
+  count: number,
+  distribution: Partial<Record<Difficulty, number>> | undefined,
+  fallback: Difficulty
+): DifficultySlice[] {
+  if (count <= 0) return [];
+  if (!distribution) return [{ difficulty: fallback, count }];
+  const active = DIFFICULTY_LEVELS
+    .map(difficulty => ({ difficulty, weight: Number(distribution[difficulty] ?? 0) }))
+    .filter(item => Number.isFinite(item.weight) && item.weight > 0);
+  if (!active.length) return [{ difficulty: fallback, count }];
+  const totalWeight = active.reduce((sum, item) => sum + item.weight, 0);
+  const raw = active.map(item => count * item.weight / totalWeight);
+  const base = raw.map(Math.floor);
+  let remaining = count - base.reduce((sum, value) => sum + value, 0);
+  const byRemainder = raw
+    .map((value, index) => ({ index, remainder: value - base[index] }))
+    .sort((left, right) => right.remainder - left.remainder || left.index - right.index);
+  for (const item of byRemainder) {
+    if (remaining-- <= 0) break;
+    base[item.index]++;
+  }
+  return active
+    .map((item, index) => ({ difficulty: item.difficulty, count: base[index] }))
+    .filter(item => item.count > 0);
+}
 
 export interface GenerationDirective {
   readonly [key: string]: unknown;
@@ -172,78 +210,96 @@ export function generateWorksheet(input: WorksheetConfig, options: GenerateWorks
   const questions: Question[] = [];
   const difficultyScores = new Map<string, number>();
   const blueprint = buildWorksheetBlueprint(config);
-  for (const { type, count: target } of blueprint.allocations) {
-    if (target === 0) continue;
-    const profile = getProblemProfile(type, config.difficulty, config.stage, config.rangeMode);
-    const carryQuota = QUOTA_CARRY_TYPES.has(type)
-      ? booleanQuotaCount(target, regroupingQuota(type, target, profile), [], random)
-      : [];
-    const trivialQuota = booleanQuotaCount(target, minimumTrivialQuota(type, target, profile), carryQuota, random);
-    const restrictiveQuota = carryQuota.map((value, index) => value || trivialQuota[index]);
-    const highRangeQuota = SMALL_REGROUPING_TYPES.has(type)
-      ? preferredBooleanQuota(target, profile.highRangeRate, restrictiveQuota, random)
-      : booleanQuota(target, profile.highRangeRate, [], random);
-    const relations = type === 'compareSigns'
-      ? relationQuota(target, profile.equalityRate, config.allowDuplicates ? Number.POSITIVE_INFINITY : profile.max + 1, random)
-      : [];
-    const equalFractions = type === 'fractionComparison' ? booleanQuota(target, profile.equalityRate, [], random) : [];
-    const mixedQuota = type === 'mixedAddSub' && profile.terms >= 3 ? booleanQuota(target, profile.mixedRate, [], random) : [];
-    const definition = getQuestionDefinition(type);
-    const structural = definition.directives?.reverse || definition.directives?.multiStep
-      ? structuralQuota(target, profile.reverseRate, profile.wordSteps >= 2 ? profile.multiStepRate : 0, definition.directives?.reverse === true, definition.directives?.multiStep === true, random)
-      : [];
-    const quotaOrder = [
-      ...shuffle(Array.from({ length: target }, (_, index) => index).filter(index => highRangeQuota[index]), random),
-      ...shuffle(Array.from({ length: target }, (_, index) => index).filter(index => !highRangeQuota[index]), random)
-    ];
+  const hasMixedDifficulty = Boolean(
+    (config.difficultyDistribution && Object.values(config.difficultyDistribution).some(weight => Number(weight) > 0))
+    || (config.typeDifficulties && Object.keys(config.typeDifficulties).length > 0)
+  );
+  for (const { type, count: totalTarget } of blueprint.allocations) {
+    if (totalTarget === 0) continue;
+    const typeOverride = config.typeDifficulties?.[type];
+    const slices = typeOverride
+      ? [{ difficulty: typeOverride, count: totalTarget }]
+      : allocateDifficultyCounts(totalTarget, config.difficultyDistribution, config.difficulty);
+    const ceilingProfile = hasMixedDifficulty
+      ? getProblemProfile(type, 'challenge', config.stage, config.rangeMode)
+      : undefined;
     const typeQuestions: Question[] = [];
-    let generated = 0;
-    let attempts = 0;
-    // The high-range preference is soft distribution shaping, not a quota: a
-    // slot whose distinct high-range pool is exhausted (small types under
-    // isomorphic dedup) relaxes to the full range after 50 failed attempts
-    // instead of spinning until the attempt budget is gone. Carry, trivial,
-    // relation and structural directives are never relaxed.
-    let slotAttempts = 0;
-    let highRangeRelaxed = false;
-    while (generated < target && attempts++ < Math.max(500, target * 300)) {
-      const quotaIndex = quotaOrder[generated];
-      const mode = structural[quotaIndex];
-      const directive: GenerationDirective = {
-        highRange: type === 'compareSigns' && !config.allowDuplicates
-          ? undefined
-          : highRangeRelaxed ? false : highRangeQuota[quotaIndex],
-        trivial: trivialQuota[quotaIndex], carry: carryQuota[quotaIndex], mixed: mixedQuota[quotaIndex],
-        relation: relations[quotaIndex], equalFraction: equalFractions[quotaIndex],
-        reverse: definition.directives?.reverse ? mode === 'reverse' : undefined,
-        steps: definition.directives?.multiStep ? (mode === 'multiStep' ? Math.max(2, profile.wordSteps) : 1) : undefined
-      };
-      const question = generateOne(type, config, directive, { ...context, createId: () => '' });
-      const valid = validateQuestion(question, config).valid;
-      const unique = config.allowDuplicates || ![...questions, ...typeQuestions].some(item => item.signature === question.signature);
-      if (valid && unique) {
-        const generatedQuestion = { ...question, id: context.createId() };
-        difficultyScores.set(generatedQuestion.id, scoreQuestionDifficulty(question, profile));
-        typeQuestions.push(generatedQuestion);
-        generated++;
-        slotAttempts = 0;
-        highRangeRelaxed = false;
-      } else {
-        slotAttempts++;
-        if (slotAttempts >= 50 && !highRangeRelaxed && highRangeQuota[quotaIndex]) {
-          highRangeRelaxed = true;
+    for (const { difficulty: sliceDifficulty, count: target } of slices) {
+      if (target === 0) continue;
+      const sliceConfig = sliceDifficulty === config.difficulty ? config : { ...config, difficulty: sliceDifficulty };
+      const profile = getProblemProfile(type, sliceDifficulty, config.stage, config.rangeMode);
+      const carryQuota = QUOTA_CARRY_TYPES.has(type)
+        ? booleanQuotaCount(target, regroupingQuota(type, target, profile), [], random)
+        : [];
+      const trivialQuota = booleanQuotaCount(target, minimumTrivialQuota(type, target, profile), carryQuota, random);
+      const restrictiveQuota = carryQuota.map((value, index) => value || trivialQuota[index]);
+      const highRangeQuota = SMALL_REGROUPING_TYPES.has(type)
+        ? preferredBooleanQuota(target, profile.highRangeRate, restrictiveQuota, random)
+        : booleanQuota(target, profile.highRangeRate, [], random);
+      const relations = type === 'compareSigns'
+        ? relationQuota(target, profile.equalityRate, sliceConfig.allowDuplicates ? Number.POSITIVE_INFINITY : profile.max + 1, random)
+        : [];
+      const equalFractions = type === 'fractionComparison' ? booleanQuota(target, profile.equalityRate, [], random) : [];
+      const mixedQuota = type === 'mixedAddSub' && profile.terms >= 3 ? booleanQuota(target, profile.mixedRate, [], random) : [];
+      const definition = getQuestionDefinition(type);
+      const structural = definition.directives?.reverse || definition.directives?.multiStep
+        ? structuralQuota(target, profile.reverseRate, profile.wordSteps >= 2 ? profile.multiStepRate : 0, definition.directives?.reverse === true, definition.directives?.multiStep === true, random)
+        : [];
+      const quotaOrder = [
+        ...shuffle(Array.from({ length: target }, (_, index) => index).filter(index => highRangeQuota[index]), random),
+        ...shuffle(Array.from({ length: target }, (_, index) => index).filter(index => !highRangeQuota[index]), random)
+      ];
+      let generated = 0;
+      let attempts = 0;
+      // The high-range preference is soft distribution shaping, not a quota: a
+      // slot whose distinct high-range pool is exhausted (small types under
+      // isomorphic dedup) relaxes to the full range after 50 failed attempts
+      // instead of spinning until the attempt budget is gone. Carry, trivial,
+      // relation and structural directives are never relaxed.
+      let slotAttempts = 0;
+      let highRangeRelaxed = false;
+      while (generated < target && attempts++ < Math.max(500, target * 300)) {
+        const quotaIndex = quotaOrder[generated];
+        const mode = structural[quotaIndex];
+        const directive: GenerationDirective = {
+          highRange: type === 'compareSigns' && !sliceConfig.allowDuplicates
+            ? undefined
+            : highRangeRelaxed ? false : highRangeQuota[quotaIndex],
+          trivial: trivialQuota[quotaIndex], carry: carryQuota[quotaIndex], mixed: mixedQuota[quotaIndex],
+          relation: relations[quotaIndex], equalFraction: equalFractions[quotaIndex],
+          reverse: definition.directives?.reverse ? mode === 'reverse' : undefined,
+          steps: definition.directives?.multiStep ? (mode === 'multiStep' ? Math.max(2, profile.wordSteps) : 1) : undefined
+        };
+        const question = generateOne(type, sliceConfig, directive, { ...context, createId: () => '' });
+        const valid = validateQuestion(question, sliceConfig).valid;
+        const unique = sliceConfig.allowDuplicates || ![...questions, ...typeQuestions].some(item => item.signature === question.signature);
+        if (valid && unique) {
+          const generatedQuestion = { ...question, id: context.createId() };
+          const scoreProfile = ceilingProfile ?? profile;
+          const baseScore = scoreQuestionDifficulty(question, scoreProfile);
+          const tierBonus = hasMixedDifficulty ? DIFFICULTY_LEVELS.indexOf(sliceDifficulty) * 0.02 : 0;
+          difficultyScores.set(generatedQuestion.id, Math.min(1, baseScore + tierBonus));
+          typeQuestions.push(generatedQuestion);
+          generated++;
           slotAttempts = 0;
+          highRangeRelaxed = false;
+        } else {
+          slotAttempts++;
+          if (slotAttempts >= 50 && !highRangeRelaxed && highRangeQuota[quotaIndex]) {
+            highRangeRelaxed = true;
+            slotAttempts = 0;
+          }
         }
       }
+      if (generated < target) throw new Error(`题型 ${type} 只能生成 ${generated} 道不重复题目，请减少题量、增加题型或允许重复`);
     }
-    if (generated < target) throw new Error(`题型 ${type} 只能生成 ${generated} 道不重复题目，请减少题量、增加题型或允许重复`);
     questions.push(...shuffle(typeQuestions, random));
   }
   const ordered = blueprint.ordering === 'random'
     ? shuffle(questions, random)
     : blueprint.ordering === 'progressive'
       ? [...questions].sort((left, right) => (difficultyScores.get(left.id) ?? 0) - (difficultyScores.get(right.id) ?? 0)
-        || Number(left.metadata?.magnitude ?? Math.max(...left.operands)) - Number(right.metadata?.magnitude ?? Math.max(...right.operands)))
+        || effectiveQuestionMagnitude(left) - effectiveQuestionMagnitude(right))
       : questions;
   if (config.generationMode === 'pages') {
     const questionPages = paginateByMeasuredFootprints(ordered, config, question => questionFootprint(question, config));

@@ -40,6 +40,8 @@ export interface WorksheetConfig {
   ordering?: OrderingMode;
   preset?: WorksheetPresetId;
   typeWeights?: Partial<Record<ProblemType, number>>;
+  typeDifficulties?: Partial<Record<ProblemType, Difficulty>>;
+  difficultyDistribution?: Partial<Record<Difficulty, number>>;
 }
 
 export interface Worksheet {

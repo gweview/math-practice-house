@@ -2,6 +2,7 @@ import type { Difficulty, Question } from '../../domain/questions/model';
 import type { QuestionDefinition, QuestionGenerationInput, QuestionValidationResult } from '../../domain/questions/contracts';
 import type { WorksheetConfig } from '../../domain/worksheet/config';
 import type { RandomSource } from '../../shared/random/seeded-random';
+import { sampleProductTriple } from '../../core/generators/sampling';
 
 type MultiplicationType =
   | 'multiplication' | 'division' | 'multiDigitMultiplication'
@@ -159,20 +160,9 @@ export function generateRemainderDivision(input: QuestionGenerationInput): Quest
 export function generateMixedMulDiv(input: QuestionGenerationInput): Question {
   const { profile, random } = effectiveInput(input);
   const minimum = random() < profile.trivialRate ? 1 : 2;
-  let a = minimum;
-  let b = minimum;
-  let divisor = minimum;
-  for (let attempt = 0; attempt < 200; attempt++) {
-    const candidateA = randomInt(minimum, profile.maxFactor, random);
-    const candidateB = randomInt(minimum, profile.maxFactor, random);
-    const candidateDivisor = randomInt(minimum, profile.maxFactor, random);
-    if (candidateA * candidateB * candidateDivisor <= profile.max) {
-      a = candidateA;
-      b = candidateB;
-      divisor = candidateDivisor;
-      break;
-    }
-  }
+  const triple = sampleProductTriple(minimum, profile.maxFactor, profile.max, random);
+  if (!triple) throw new Error('当前范围无法生成乘除混合题目，请调整难度');
+  const [a, b, divisor] = triple;
   const product = a * b * divisor;
   return random() < .5
     ? expressionQuestion(input, 'mixedMulDiv', [a * divisor, b, divisor], ['×', '÷'])

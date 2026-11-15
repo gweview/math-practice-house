@@ -1,4 +1,5 @@
-import { generateAddition, generateNoBorrowSubtraction, generateNoCarryAddition, generateSubtraction, hasAdditionRegrouping, hasSubtractionRegrouping } from '../../core/generators/arithmetic';
+import { buildArithmeticQuestion, generateAddition, generateNoBorrowSubtraction, generateNoCarryAddition, generateSubtraction, hasAdditionRegrouping, hasSubtractionRegrouping } from '../../core/generators/arithmetic';
+import { sampleAddendPair, sampleSubtrahend } from '../../core/generators/sampling';
 import { highFloor, sampleInt } from '../../core/generators/tuning';
 import { attachCreateId, randomInt, shuffle } from '../../core/random-utils';
 import { answerProtocol, compareAnswerProtocols, fromLegacyAnswer, integerAnswer, parseAnswerProtocol } from '../../domain/questions/answers';
@@ -136,17 +137,29 @@ function mixedFour(input: QuestionGenerationInput): Question {
 
 function twoDigit(input: QuestionGenerationInput, subtraction: boolean): Question {
   const prepared = effectiveInput(input);
-  const candidateRandom = attachCreateId(prepared.random, () => '');
-  for (let attempt = 0; attempt < 300; attempt++) {
-    const question = subtraction
-      ? generateSubtraction(prepared.profile.max, true, 'twoDigitBorrow', 'inline', 10, prepared.profile.highRangeRate, 0, candidateRandom)
-      : generateAddition(prepared.profile.max, true, 'twoDigitCarry', 'inline', 10, prepared.profile.highRangeRate, 0, candidateRandom);
-    if (question.operands.every(value => value >= 10)) return { ...question, id: prepared.createId() };
+  const { profile, random } = prepared;
+  // Both operands must be two-digit, so the total/minuend starts at 20. Not
+  // every total admits a regrouping pair with two-digit operands (for
+  // example totals ending in 9 below 100), so scan outward from the sampled
+  // target to the nearest feasible total instead of guessing pairs.
+  const floor = Math.max(20, profile.min);
+  const target = sampleInt(floor, profile.max, profile.highRangeRate, random);
+  const totals = [target];
+  for (let delta = 1; delta <= profile.max - floor; delta++) {
+    if (target + delta <= profile.max) totals.push(target + delta);
+    if (target - delta >= floor) totals.push(target - delta);
   }
-  const question = subtraction
-    ? generateSubtraction(prepared.profile.max, true, 'twoDigitBorrow', 'inline', 10, prepared.profile.highRangeRate, 0, candidateRandom)
-    : generateAddition(prepared.profile.max, true, 'twoDigitCarry', 'inline', 10, prepared.profile.highRangeRate, 0, candidateRandom);
-  return { ...question, id: prepared.createId() };
+  const scopedRandom = attachCreateId(random, prepared.createId);
+  for (const total of totals) {
+    if (subtraction) {
+      const subtrahend = sampleSubtrahend(total, true, random, 10);
+      if (subtrahend !== null) return buildArithmeticQuestion('twoDigitBorrow', total, subtrahend, '-', 'inline', scopedRandom);
+    } else {
+      const pair = sampleAddendPair(total, true, random, 10);
+      if (pair) return buildArithmeticQuestion('twoDigitCarry', pair[0], pair[1], '+', 'inline', scopedRandom);
+    }
+  }
+  throw new Error('当前范围无法生成两位数进退位题目，请调整年级或难度');
 }
 
 function addition(input: QuestionGenerationInput, type: 'addition10' | 'addition20Carry' | 'addition100' | 'addition1000', carry?: boolean): Question {

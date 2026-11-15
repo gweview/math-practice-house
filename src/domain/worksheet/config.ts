@@ -4,7 +4,7 @@ import type { Question } from '../questions/model';
 
 export type Stage = Grade;
 export type RangeMode = 'curriculum' | 'free';
-export type PracticeMode = 'standard' | 'verticalAddSub' | 'verticalMulDiv';
+export type PracticeMode = 'standard' | 'verticalAddSub' | 'verticalMulDiv' | 'verticalAll';
 export type GenerationMode = 'count' | 'pages';
 export type AnswerMode = 'none' | 'compact' | 'detailed';
 export type OrderingMode = 'random' | 'grouped' | 'progressive';
@@ -12,6 +12,9 @@ export type WorksheetPresetId =
   | 'daily' | 'calculation' | 'comprehensive' | 'application'
   | 'geometry' | 'data' | 'challenge' | 'custom';
 export type VerticalOperation = 'addition' | 'subtraction' | 'multiplication' | 'division';
+export type VerticalDivisionMode = 'mixed' | 'exact' | 'remainder' | 'zeroQuotient' | 'twoDigitDivisor';
+export type VerticalMultiplicationMode = 'mixed' | 'threeByOne' | 'twoByTwo';
+export type VerticalSubtractionMode = 'mixed' | 'acrossZero';
 
 export const VERTICAL_PAGE_SIZE = 8;
 export const MAX_VERTICAL_PAGES = 5;
@@ -42,6 +45,9 @@ export interface WorksheetConfig {
   typeWeights?: Partial<Record<ProblemType, number>>;
   typeDifficulties?: Partial<Record<ProblemType, Difficulty>>;
   difficultyDistribution?: Partial<Record<Difficulty, number>>;
+  verticalDivisionMode?: VerticalDivisionMode;
+  verticalMultiplicationMode?: VerticalMultiplicationMode;
+  verticalSubtractionMode?: VerticalSubtractionMode;
 }
 
 export interface Worksheet {

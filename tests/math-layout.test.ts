@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Layout, Question, WorksheetConfig } from '../src/core/types';
+import { packInlineRows } from '../src/core/generate';
+import { measuredTrackHeightMm, questionFootprint } from '../src/domain/worksheet/layout-metrics';
+import { computeLongDivisionSteps } from '../src/features/math/MathWorkbook';
 import { planMathSheets } from '../src/features/math/layout';
 
 const baseConfig: WorksheetConfig = {
@@ -145,5 +148,43 @@ describe('math physical sheet planning', () => {
     const sheets = planMathSheets(questions, { ...baseConfig, answerMode: 'compact' });
     expect(sheets.filter(sheet => sheet.kind === 'answers')).toHaveLength(1);
     expect(sheets.filter(sheet => sheet.kind === 'answers')[0].slots).toHaveLength(100);
+  });
+
+  it('eliminates stranded single-column rows between full-width barriers via packInlineRows', () => {
+    const alternating: Question[] = [
+      makeQuestion(1, 'inline'),
+      makeQuestion(2, 'word'),
+      makeQuestion(3, 'inline'),
+      makeQuestion(4, 'word'),
+      makeQuestion(5, 'inline'),
+      makeQuestion(6, 'inline')
+    ];
+    const beforeHeight = measuredTrackHeightMm(alternating, baseConfig, q => questionFootprint(q, baseConfig));
+    const packed = packInlineRows(alternating, baseConfig);
+    const afterHeight = measuredTrackHeightMm(packed, baseConfig, q => questionFootprint(q, baseConfig));
+    expect(afterHeight).toBeLessThan(beforeHeight);
+    expect(packed.map(q => q.id)).toEqual(['question-2', 'question-1', 'question-3', 'question-4', 'question-5', 'question-6']);
+  });
+
+  it('computes column-aligned long division steps for exact and remainder divisions', () => {
+    const step75div6 = computeLongDivisionSteps(75, 6, 2);
+    expect(step75div6.steps).toEqual([
+      { minuend: undefined, product: '6 ' },
+      { minuend: '15', product: '12' }
+    ]);
+    expect(step75div6.finalRemainder).toBe(' 3');
+
+    const step245div6 = computeLongDivisionSteps(245, 6, 3);
+    expect(step245div6.steps).toEqual([
+      { minuend: undefined, product: '24 ' }
+    ]);
+    expect(step245div6.finalRemainder).toBe('  5');
+
+    const step408div4 = computeLongDivisionSteps(408, 4, 3);
+    expect(step408div4.steps).toEqual([
+      { minuend: undefined, product: '4  ' },
+      { minuend: '  8', product: '  8' }
+    ]);
+    expect(step408div4.finalRemainder).toBe('  0');
   });
 });

@@ -238,6 +238,7 @@ main{width:min(1180px,94vw)}
 .quick-step h3{margin:1px 0 3px;font-size:1rem;color:#254b43}
 .quick-step header p{margin:0;color:var(--muted);font-size:.76rem;line-height:1.45}
 .compact-cards{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.compact-cards--four{grid-template-columns:repeat(4,minmax(0,1fr))}
 .compact-cards button{display:flex;flex-direction:column;gap:3px;align-items:center;padding:9px 5px;text-align:center}
 .compact-cards button>span{grid-row:auto;font-size:1.25rem}
 .compact-cards button strong{font-size:.76rem}
@@ -253,6 +254,20 @@ main{width:min(1180px,94vw)}
 .preset-grid button strong{font-size:.78rem}
 .preset-grid button small{overflow:hidden;color:var(--muted);font-size:.65rem;line-height:1.3;text-overflow:ellipsis;white-space:nowrap}
 .preset-grid button.selected,.answer-mode-grid button.selected{border-color:#5ca18f;background:#edf8f4;box-shadow:inset 0 0 0 1px #79b4a5;color:var(--primary-dark)}
+.selected-types-tray{margin-top:11px;padding:9px 11px;border:1px solid #d5e4de;border-radius:12px;background:#f7fbf9}
+.tray-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;color:#4f6861;font-size:.72rem}
+.tray-header b{color:var(--primary-dark)}
+.tray-action-btn{border:1px solid #8bcbb8;border-radius:7px;background:#fff;padding:3px 8px;color:var(--primary-dark);font-size:.7rem;font-weight:800}
+.tray-chips{display:flex;flex-wrap:wrap;gap:5px;max-height:84px;overflow-y:auto}
+.selected-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 6px 3px 8px;border:1px solid #c3ddd4;border-radius:999px;background:#fff;color:#274a42;font-size:.72rem;font-weight:700}
+.chip-weight{border:1px solid #d2e3dd;border-radius:6px;background:#f1f7f5;padding:1px 4px;color:#4d6861;font-size:.65rem;font-weight:800}
+.chip-weight.active{border-color:#e2955a;background:#fff1df;color:#a55129}
+.chip-remove{border:0;border-radius:50%;background:transparent;padding:0 3px;color:#7c8f8a;font-size:.82rem;line-height:1}
+.chip-remove:hover{color:#b53f2f}
+.vertical-column-studio{display:grid;gap:8px;margin-top:10px;padding-top:9px;border-top:1px dashed #d8e5e0}
+.vertical-submode-group{display:grid;gap:4px}
+.submode-label{color:#49635d;font-size:.72rem;font-weight:800}
+.difficulty-mode-switch{margin:0 0 9px}
 .quick-step .difficulty-row{gap:5px}
 .quick-step .difficulty-row button{flex:1 1 52px;padding:8px 5px;font-size:.75rem}
 .amount-mode{margin:12px 0 9px}
@@ -278,13 +293,15 @@ main{width:min(1180px,94vw)}
 .domain-tabs button.selected{border-color:#72a99b;background:#edf8f4;color:var(--primary-dark)}
 .builder-details .type-toolbar{flex-wrap:wrap}
 .builder-details .type-toolbar span{margin-left:auto}
-.knowledge-groups>section{padding:8px 0}
-.knowledge-groups h3{display:flex;align-items:center;gap:7px;margin:8px 0;color:#49635d;font-size:.84rem}
-.knowledge-groups .type-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
-.knowledge-groups .check{align-items:flex-start;min-height:58px;padding:10px}
-.knowledge-groups .check>span{display:grid;gap:3px;min-width:0}
-.knowledge-groups .check strong{font-size:.79rem}
-.knowledge-groups .check small{margin:0;padding:0;background:transparent;color:var(--muted);font-size:.66rem;line-height:1.3}
+.knowledge-groups>section{padding:6px 0}
+.group-header-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0}
+.knowledge-groups h3{display:flex;align-items:center;gap:7px;margin:0;color:#49635d;font-size:.84rem}
+.group-toggle-btn{border:1px solid #cde0d9;border-radius:7px;background:#f5faf8;padding:3px 8px;color:#3d665c;font-size:.7rem;font-weight:750}
+.knowledge-groups .type-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.knowledge-groups .check{align-items:center;min-height:44px;padding:7px 9px}
+.knowledge-groups .check>span{display:grid;gap:2px;min-width:0}
+.knowledge-groups .check strong{font-size:.77rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.knowledge-groups .check small{margin:0;padding:0;background:transparent;color:var(--muted);font-size:.65rem;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .advanced-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .advanced-grid fieldset{padding:14px}
 .advanced-grid .wide{grid-column:1/-1}

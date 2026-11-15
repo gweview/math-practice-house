@@ -20,6 +20,31 @@ export interface DifficultySlice {
  * Deterministic largest-remainder allocation of a slot count across difficulty
  * tiers. Returns a single slice at `fallback` when no distribution is active.
  */
+export function packInlineRows(
+  questions: readonly Question[],
+  config: Pick<WorksheetConfig, 'orientation' | 'fontSize'>
+): Question[] {
+  const columnCount = config.orientation === 'portrait' ? 2 : 3;
+  const inlineBuffer: Question[] = [];
+  const result: Question[] = [];
+  for (const question of questions) {
+    const footprint = questionFootprint(question, config);
+    if (footprint.columns !== 'full') {
+      inlineBuffer.push(question);
+      if (inlineBuffer.length === columnCount) {
+        result.push(...inlineBuffer);
+        inlineBuffer.length = 0;
+      }
+    } else {
+      result.push(question);
+    }
+  }
+  if (inlineBuffer.length > 0) {
+    result.push(...inlineBuffer);
+  }
+  return result;
+}
+
 export function allocateDifficultyCounts(
   count: number,
   distribution: Partial<Record<Difficulty, number>> | undefined,
@@ -296,9 +321,10 @@ export function generateWorksheet(input: WorksheetConfig, options: GenerateWorks
     questions.push(...shuffle(typeQuestions, random));
   }
   const ordered = blueprint.ordering === 'random'
-    ? shuffle(questions, random)
+    ? packInlineRows(shuffle(questions, random), config)
     : blueprint.ordering === 'progressive'
       ? [...questions].sort((left, right) => (difficultyScores.get(left.id) ?? 0) - (difficultyScores.get(right.id) ?? 0)
+        || (questionFootprint(left, config).columns === 'full' ? 1 : 0) - (questionFootprint(right, config).columns === 'full' ? 1 : 0)
         || effectiveQuestionMagnitude(left) - effectiveQuestionMagnitude(right))
       : questions;
   if (config.generationMode === 'pages') {

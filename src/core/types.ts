@@ -9,7 +9,10 @@ export type {
   PracticeMode,
   RangeMode,
   Stage,
+  VerticalDivisionMode,
+  VerticalMultiplicationMode,
   VerticalOperation,
+  VerticalSubtractionMode,
   Worksheet,
   WorksheetConfig,
   WorksheetPresetId

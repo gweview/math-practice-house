@@ -57,11 +57,25 @@ export function normalizeStoredWorksheetConfig(value: unknown): WorksheetConfig 
   const rangeMode = raw.rangeMode === 'free' ? 'free' : 'curriculum';
   const validTypes = (Array.isArray(raw.types) ? raw.types : []).filter((type): type is ProblemType => isRegisteredProblemType(type) && STANDARD_TYPES.has(type));
   const compatibleTypes = rangeMode === 'curriculum' ? validTypes.filter(type => isTypeAllowedForStage(type, stage)) : validTypes;
-  const requestedPracticeMode: PracticeMode = raw.practiceMode === 'verticalAddSub' || raw.practiceMode === 'verticalMulDiv' ? raw.practiceMode : 'standard';
+  const requestedPracticeMode: PracticeMode = raw.practiceMode === 'verticalAddSub' || raw.practiceMode === 'verticalMulDiv' || raw.practiceMode === 'verticalAll' ? raw.practiceMode : 'standard';
   const practiceMode = compatiblePracticeMode(requestedPracticeMode, stage, rangeMode);
-  const allowedVerticalOperations: VerticalOperation[] = practiceMode === 'verticalMulDiv' ? ['multiplication', 'division'] : ['addition', 'subtraction'];
+  const canMulDiv = rangeMode === 'free' || ['grade3', 'grade4', 'grade5', 'grade6'].includes(stage);
+  const allowedVerticalOperations: VerticalOperation[] = practiceMode === 'verticalMulDiv'
+    ? ['multiplication', 'division']
+    : practiceMode === 'verticalAll' && canMulDiv
+      ? ['addition', 'subtraction', 'multiplication', 'division']
+      : ['addition', 'subtraction'];
   const savedVerticalOperations = (Array.isArray(raw.verticalOperations) ? raw.verticalOperations : [])
     .filter((operation): operation is VerticalOperation => typeof operation === 'string' && allowedVerticalOperations.includes(operation as VerticalOperation));
+  const verticalDivisionMode = ['mixed', 'exact', 'remainder', 'zeroQuotient', 'twoDigitDivisor'].includes(String(raw.verticalDivisionMode))
+    ? raw.verticalDivisionMode as WorksheetConfig['verticalDivisionMode']
+    : undefined;
+  const verticalMultiplicationMode = ['mixed', 'threeByOne', 'twoByTwo'].includes(String(raw.verticalMultiplicationMode))
+    ? raw.verticalMultiplicationMode as WorksheetConfig['verticalMultiplicationMode']
+    : undefined;
+  const verticalSubtractionMode = ['mixed', 'acrossZero'].includes(String(raw.verticalSubtractionMode))
+    ? raw.verticalSubtractionMode as WorksheetConfig['verticalSubtractionMode']
+    : undefined;
   const fields = asRecord(raw.fields);
   const count = Number(raw.count);
   const verticalPages = Number(raw.verticalPages);
@@ -114,7 +128,10 @@ export function normalizeStoredWorksheetConfig(value: unknown): WorksheetConfig 
     },
     orientation: raw.orientation === 'landscape' ? 'landscape' : 'portrait',
     fontSize: raw.fontSize === 'large' ? 'large' : 'standard',
-    seed: typeof raw.seed === 'string' ? raw.seed.trim().slice(0, 80) : ''
+    seed: typeof raw.seed === 'string' ? raw.seed.trim().slice(0, 80) : '',
+    ...(verticalDivisionMode ? { verticalDivisionMode } : {}),
+    ...(verticalMultiplicationMode ? { verticalMultiplicationMode } : {}),
+    ...(verticalSubtractionMode ? { verticalSubtractionMode } : {})
   };
 }
 

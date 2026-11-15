@@ -1,6 +1,15 @@
 import { id, randomInt, shuffle } from '../random-utils';
 import type { RandomSource } from '../../shared/random/seeded-random';
-import { VERTICAL_PAGE_SIZE, type ProblemProfile, type Question, type VerticalOperation, type WorksheetConfig } from '../types';
+import {
+  VERTICAL_PAGE_SIZE,
+  type ProblemProfile,
+  type Question,
+  type VerticalDivisionMode,
+  type VerticalMultiplicationMode,
+  type VerticalOperation,
+  type VerticalSubtractionMode,
+  type WorksheetConfig
+} from '../types';
 
 /** Difficulty parameters for vertical generation, resolved from a registry
  * ProblemProfile. Vertical mode used to keep a second difficulty system keyed
@@ -129,10 +138,48 @@ function generateVerticalAddition(params: VerticalParameters, complex: boolean, 
   throw new Error('当前范围无法生成符合难度的加法竖式，请调整年级或难度');
 }
 
-function generateVerticalSubtraction(params: VerticalParameters, complex: boolean, random: RandomSource): Question {
+function generateVerticalSubtraction(
+  params: VerticalParameters,
+  complex: boolean,
+  random: RandomSource,
+  mode: VerticalSubtractionMode = 'mixed'
+): Question {
   const { max, minOperand: min } = params;
   const floor = addSubFloor(params);
   const required = complex ? (params.doubleRegrouping ? 2 : 1) : 0;
+
+  if (mode === 'acrossZero') {
+    const cap = Math.max(40, max);
+    const minimumDifference = cap <= 20 ? 2 : cap <= 100 ? 10 : 10;
+    for (let attempt = 0; attempt < 2000; attempt++) {
+      let a: number;
+      if (cap >= 200) {
+        const hundreds = randomInt(2, Math.max(2, Math.floor(cap / 100)), random);
+        const zeroTens = random() < .65;
+        const ones = zeroTens ? randomInt(0, 8, random) : 0;
+        const tens = zeroTens ? 0 : randomInt(1, 8, random);
+        a = Math.min(cap, hundreds * 100 + tens * 10 + ones);
+        if (a % 10 !== 0 && Math.floor(a / 10) % 10 !== 0) a = hundreds * 100 + randomInt(0, 8, random);
+      } else {
+        const tens = randomInt(3, Math.max(3, Math.floor(cap / 10)), random);
+        a = Math.min(cap, tens * 10);
+      }
+      if (a <= min + minimumDifference) continue;
+      const bOnes = randomInt(Math.max(1, a % 10 + 1), 9, random);
+      const bTens = a >= 100 ? randomInt(Math.max(1, Math.floor(a / 10) % 10 + 1), 9, random) : randomInt(1, Math.max(1, Math.floor((a - minimumDifference) / 10)), random);
+      const bHundreds = a >= 200 ? randomInt(0, Math.max(0, Math.floor((a - minimumDifference - bTens * 10 - bOnes) / 100)), random) : 0;
+      const b = bHundreds * 100 + bTens * 10 + bOnes;
+      const difference = a - b;
+      if (b < min || difference < minimumDifference || b % 10 === 0) continue;
+      const regroupingCount = regroupingCountForSubtraction(a, b);
+      if (regroupingCount < 1) continue;
+      return {
+        id: id(random), type: 'verticalSubtraction', text: `${a} - ${b} =`, answer: difference,
+        operands: [a, b], operators: ['-'], signature: `verticalSubtraction:${a}-${b}`, layout: 'vertical',
+        metadata: { regrouping: true, regroupingCount, trivial: false, magnitude: a }
+      };
+    }
+  }
 
   for (let attempt = 0; attempt < 4000; attempt++) {
     const a = randomInt(Math.max(floor, min + 1), max, random);
@@ -151,8 +198,50 @@ function generateVerticalSubtraction(params: VerticalParameters, complex: boolea
   throw new Error('当前范围无法生成符合难度的减法竖式，请调整年级或难度');
 }
 
-function generateVerticalMultiplication(params: VerticalParameters, complex: boolean, random: RandomSource): Question {
-  const { factorMin, factorMax } = params;
+function generateVerticalMultiplication(
+  params: VerticalParameters,
+  complex: boolean,
+  random: RandomSource,
+  mode: VerticalMultiplicationMode = 'mixed'
+): Question {
+  const { factorMin, factorMax, max } = params;
+
+  if (mode === 'threeByOne') {
+    const upperA = Math.max(199, Math.min(999, Math.floor(Math.max(max, 600) / factorMin)));
+    const lowerA = Math.min(101, upperA - 20);
+    for (let attempt = 0; attempt < 2500; attempt++) {
+      const b = randomInt(factorMin, factorMax, random);
+      const maxA = Math.min(999, Math.max(120, Math.floor(Math.max(max, 900) / b)));
+      const a = randomInt(Math.min(lowerA, maxA - 5), maxA, random);
+      if (a < 100 || a % 10 === 0 || a * b > max) continue;
+      const regroupingCount = regroupingCountForMultiplication(a, b);
+      const regrouping = regroupingCount > 0;
+      if (complex && !regrouping) continue;
+      return {
+        id: id(random), type: 'verticalMultiplication', text: `${a} × ${b} =`, answer: a * b,
+        operands: [a, b], operators: ['×'], signature: `verticalMultiplication:${a}×${b}`, layout: 'vertical',
+        metadata: { regrouping, regroupingCount, factor: b, trivial: false, magnitude: a * b }
+      };
+    }
+  }
+
+  if (mode === 'twoByTwo') {
+    for (let attempt = 0; attempt < 2500; attempt++) {
+      const a = randomInt(11, Math.min(99, Math.max(24, Math.floor(Math.sqrt(max) * 1.4))), random);
+      const maxB = Math.min(99, Math.max(12, Math.floor(max / a)));
+      const b = randomInt(11, maxB, random);
+      if (a % 10 === 0 || b % 10 === 0 || a * b > max) continue;
+      const regroupingCount = regroupingCountForMultiplication(a, b);
+      const regrouping = regroupingCount > 0;
+      if (complex && !regrouping) continue;
+      return {
+        id: id(random), type: 'verticalMultiplication', text: `${a} × ${b} =`, answer: a * b,
+        operands: [a, b], operators: ['×'], signature: `verticalMultiplication:${a}×${b}`, layout: 'vertical',
+        metadata: { regrouping, regroupingCount, factor: b, trivial: false, magnitude: a * b }
+      };
+    }
+  }
+
   const complexFloor = Math.max(12, Math.ceil(99 * params.magnitudeFloorFactor));
 
   for (let attempt = 0; attempt < 3000; attempt++) {
@@ -175,11 +264,60 @@ function generateVerticalMultiplication(params: VerticalParameters, complex: boo
   throw new Error('当前难度无法生成符合要求的乘法竖式，请调整难度');
 }
 
-function generateVerticalDivision(params: VerticalParameters, withRemainder: boolean, random: RandomSource): Question {
+function generateVerticalDivision(
+  params: VerticalParameters,
+  withRemainder: boolean,
+  random: RandomSource,
+  mode: VerticalDivisionMode = 'mixed'
+): Question {
   const { factorMin: divisorMin, factorMax: divisorMax, maxDividend, minQuotient } = params;
+  const effectiveRemainder = mode === 'exact' ? false : mode === 'remainder' ? true : withRemainder;
+
+  if (mode === 'zeroQuotient') {
+    for (let attempt = 0; attempt < 2500; attempt++) {
+      const divisor = randomInt(divisorMin, divisorMax, random);
+      const remainder = effectiveRemainder ? randomInt(1, divisor - 1, random) : 0;
+      const maxQ = Math.floor((maxDividend - remainder) / divisor);
+      const candidates: number[] = [];
+      for (let q = Math.max(10, minQuotient); q <= maxQ; q++) {
+        if (String(q).includes('0')) candidates.push(q);
+      }
+      if (!candidates.length) continue;
+      const quotient = candidates[randomInt(0, candidates.length - 1, random)];
+      const dividend = divisor * quotient + remainder;
+      const answer = remainder ? `${quotient}……${remainder}` : quotient;
+      return {
+        id: id(random), type: 'verticalDivision', text: `${dividend} ÷ ${divisor} =`, answer,
+        operands: [dividend, divisor], operators: ['÷'], signature: `verticalDivision:${dividend}÷${divisor}`, layout: 'longDivision',
+        metadata: { quotient, remainder, trivial: false, magnitude: dividend, longDivision: true }
+      };
+    }
+  }
+
+  if (mode === 'twoDigitDivisor') {
+    const cap = Math.max(200, maxDividend);
+    for (let attempt = 0; attempt < 2500; attempt++) {
+      const divisor = randomInt(11, Math.min(48, Math.max(16, Math.floor(cap / 4))), random);
+      if (divisor % 10 === 0) continue;
+      const remainder = effectiveRemainder ? randomInt(1, divisor - 1, random) : 0;
+      const maxQ = Math.floor((cap - remainder) / divisor);
+      if (maxQ < 2) continue;
+      const minQ = maxQ >= 11 ? Math.min(11, maxQ) : 2;
+      const quotient = randomInt(minQ, maxQ, random);
+      const dividend = divisor * quotient + remainder;
+      if (dividend > maxDividend) continue;
+      const answer = remainder ? `${quotient}……${remainder}` : quotient;
+      return {
+        id: id(random), type: 'verticalDivision', text: `${dividend} ÷ ${divisor} =`, answer,
+        operands: [dividend, divisor], operators: ['÷'], signature: `verticalDivision:${dividend}÷${divisor}`, layout: 'longDivision',
+        metadata: { quotient, remainder, trivial: false, magnitude: dividend, longDivision: true }
+      };
+    }
+  }
+
   for (let attempt = 0; attempt < 3000; attempt++) {
     const divisor = randomInt(divisorMin, divisorMax, random);
-    const remainder = withRemainder ? randomInt(1, divisor - 1, random) : 0;
+    const remainder = effectiveRemainder ? randomInt(1, divisor - 1, random) : 0;
     const quotientMax = Math.floor((maxDividend - remainder) / divisor);
     if (quotientMax < minQuotient) continue;
     const quotient = randomInt(minQuotient, quotientMax, random);
@@ -196,9 +334,17 @@ function generateVerticalDivision(params: VerticalParameters, withRemainder: boo
 }
 
 function pageOperations(operations: VerticalOperation[], randomMix: boolean, random: RandomSource): VerticalOperation[] {
-  const result = operations.length === 1
-    ? Array<VerticalOperation>(VERTICAL_PAGE_SIZE).fill(operations[0])
-    : [...Array<VerticalOperation>(4).fill(operations[0]), ...Array<VerticalOperation>(4).fill(operations[1])];
+  if (operations.length === 1) {
+    return Array<VerticalOperation>(VERTICAL_PAGE_SIZE).fill(operations[0]);
+  }
+  if (operations.length === 2) {
+    const result = [...Array<VerticalOperation>(4).fill(operations[0]), ...Array<VerticalOperation>(4).fill(operations[1])];
+    return randomMix ? shuffle(result, random) : result;
+  }
+  const result: VerticalOperation[] = [];
+  for (let index = 0; index < VERTICAL_PAGE_SIZE; index++) {
+    result.push(operations[index % operations.length]);
+  }
   return randomMix ? shuffle(result, random) : result;
 }
 
@@ -219,20 +365,35 @@ function buildPageEntries(config: WorksheetConfig, params: VerticalParameters, r
       markQuota(entries, firstIndices, Math.ceil(requested / 2), 'complex', random);
       markQuota(entries, secondIndices, Math.floor(requested / 2), 'complex', random);
     }
-  } else {
+  } else if (config.practiceMode === 'verticalMulDiv') {
     const multiplicationIndices = entries.flatMap((entry, index) => entry.operation === 'multiplication' ? [index] : []);
     const divisionIndices = entries.flatMap((entry, index) => entry.operation === 'division' ? [index] : []);
     markQuota(entries, multiplicationIndices, Math.round(multiplicationIndices.length * params.complexPerPage / VERTICAL_PAGE_SIZE), 'complex', random);
-    markQuota(entries, divisionIndices, Math.round(divisionIndices.length * params.remainderRate), 'remainder', random);
+    const effectiveRemainderRate = config.verticalDivisionMode === 'exact'
+      ? 0
+      : config.verticalDivisionMode === 'remainder'
+        ? 1
+        : params.remainderRate;
+    markQuota(entries, divisionIndices, Math.round(divisionIndices.length * effectiveRemainderRate), 'remainder', random);
+  } else {
+    const addSubMulIndices = entries.flatMap((entry, index) => entry.operation !== 'division' ? [index] : []);
+    const divisionIndices = entries.flatMap((entry, index) => entry.operation === 'division' ? [index] : []);
+    markQuota(entries, addSubMulIndices, Math.round(addSubMulIndices.length * params.complexPerPage / VERTICAL_PAGE_SIZE), 'complex', random);
+    const effectiveRemainderRate = config.verticalDivisionMode === 'exact'
+      ? 0
+      : config.verticalDivisionMode === 'remainder'
+        ? 1
+        : params.remainderRate;
+    markQuota(entries, divisionIndices, Math.round(divisionIndices.length * effectiveRemainderRate), 'remainder', random);
   }
   return entries;
 }
 
-function generateOne(params: VerticalParameters, entry: PageEntry, random: RandomSource): Question {
+function generateOne(params: VerticalParameters, entry: PageEntry, config: WorksheetConfig, random: RandomSource): Question {
   if (entry.operation === 'addition') return generateVerticalAddition(params, Boolean(entry.complex), random);
-  if (entry.operation === 'subtraction') return generateVerticalSubtraction(params, Boolean(entry.complex), random);
-  if (entry.operation === 'multiplication') return generateVerticalMultiplication(params, Boolean(entry.complex), random);
-  return generateVerticalDivision(params, Boolean(entry.remainder), random);
+  if (entry.operation === 'subtraction') return generateVerticalSubtraction(params, Boolean(entry.complex), random, config.verticalSubtractionMode);
+  if (entry.operation === 'multiplication') return generateVerticalMultiplication(params, Boolean(entry.complex), random, config.verticalMultiplicationMode);
+  return generateVerticalDivision(params, Boolean(entry.remainder), random, config.verticalDivisionMode);
 }
 
 /** Generate exactly one vertical question for registry handlers. */
@@ -253,7 +414,7 @@ export function generateVerticalQuestions(config: WorksheetConfig, profile: Prob
     for (const entry of buildPageEntries(config, params, random)) {
       let question: Question | undefined;
       for (let attempt = 0; attempt < 4000; attempt++) {
-        const candidate = generateOne(params, entry, random);
+        const candidate = generateOne(params, entry, config, random);
         if (config.allowDuplicates || !signatures.has(candidate.signature)) {
           question = candidate;
           break;

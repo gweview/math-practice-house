@@ -162,7 +162,7 @@ function validateVertical(question: Question, config: WorksheetConfig, definitio
   const [a, b] = operands;
   const operation = type === 'verticalAddition' ? 'addition' : type === 'verticalSubtraction' ? 'subtraction' : type === 'verticalMultiplication' ? 'multiplication' : 'division';
   const expectedMode = operation === 'addition' || operation === 'subtraction' ? 'verticalAddSub' : 'verticalMulDiv';
-  if (config.practiceMode !== expectedMode) errors.push('竖式题型与练习模式不一致');
+  if (config.practiceMode !== expectedMode && config.practiceMode !== 'verticalAll') errors.push('竖式题型与练习模式不一致');
   if (!config.verticalOperations.includes(operation)) errors.push('竖式运算未被选择');
   if (question.layout !== (operation === 'division' ? 'longDivision' : 'vertical')) errors.push('竖式布局无效');
   if (!Array.isArray(question.operators) || question.operators.length !== 1 || question.operators[0] !== ({ addition: '+', subtraction: '-', multiplication: '×', division: '÷' } as const)[operation]) errors.push('竖式运算符错误');
@@ -175,22 +175,31 @@ function validateVertical(question: Question, config: WorksheetConfig, definitio
   } else if (type === 'verticalSubtraction') {
     const count = regroupingSub(a, b);
     const minDifference = config.rangeMode === 'curriculum' ? config.stage === 'grade1' ? 2 : config.stage === 'grade2' ? 10 : 100 : config.difficulty === 'entry' || config.difficulty === 'easy' ? 10 : 100;
-    if (b <= 0 || a <= b || a - b < minDifference || a % 10 === 0 || b % 10 === 0) errors.push('减法竖式格式无效');
+    const allowZeroUnit = config.verticalSubtractionMode === 'acrossZero';
+    if (b <= 0 || a <= b || a - b < (allowZeroUnit ? Math.min(minDifference, 10) : minDifference) || (!allowZeroUnit && a % 10 === 0) || b % 10 === 0) errors.push('减法竖式格式无效');
     if (question.answer !== a - b) errors.push('减法竖式答案错误');
     if (question.metadata?.regroupingCount !== count || question.metadata?.regrouping !== (count > 0)) errors.push('退位元数据错误');
     if (question.metadata?.magnitude !== undefined && question.metadata.magnitude !== a) errors.push('数量级元数据错误');
   } else if (type === 'verticalMultiplication') {
     const count = regroupingMul(a, b);
-    if (a < 10 || b < 2 || b > 9 || a % 10 === 0) errors.push('乘法竖式格式无效');
+    const maxMultiplier = config.verticalMultiplicationMode === 'twoByTwo' ? 99 : 9;
+    if (a < 10 || b < 2 || b > maxMultiplier || a % 10 === 0 || (b >= 10 && b % 10 === 0)) errors.push('乘法竖式格式无效');
     if (question.answer !== a * b) errors.push('乘法竖式答案错误');
     if (question.metadata?.regroupingCount !== count || question.metadata?.regrouping !== (count > 0)) errors.push('进位元数据错误');
     if (question.metadata?.factor !== undefined && question.metadata.factor !== b) errors.push('因数元数据错误');
     if (question.metadata?.magnitude !== undefined && question.metadata.magnitude !== a * b) errors.push('数量级元数据错误');
   } else {
-    if (b < 2 || b > 9 || a <= 0) errors.push('除法竖式格式无效');
+    const twoDigitDivisor = config.verticalDivisionMode === 'twoDigitDivisor';
+    const zeroQuotient = config.verticalDivisionMode === 'zeroQuotient';
+    const maxDivisor = twoDigitDivisor ? 99 : 9;
+    if (b < 2 || b > maxDivisor || a <= 0) errors.push('除法竖式格式无效');
     const quotient = b > 0 ? Math.floor(a / b) : 0;
     const remainder = b > 0 ? a % b : 0;
-    if (quotient < 10 || quotient % 10 === 0 || a % 10 === 0 || remainder >= b) errors.push('除法竖式格式无效');
+    const minQuotient = twoDigitDivisor ? 2 : 10;
+    if (quotient < minQuotient || (!zeroQuotient && !twoDigitDivisor && (quotient % 10 === 0 || a % 10 === 0)) || remainder >= b) errors.push('除法竖式格式无效');
+    if (config.verticalDivisionMode === 'exact' && remainder !== 0) errors.push('整除竖式不应有余数');
+    if (config.verticalDivisionMode === 'remainder' && remainder === 0) errors.push('有余数竖式余数不能为0');
+    if (zeroQuotient && !String(quotient).includes('0')) errors.push('商含0竖式商必须包含0');
     const expected: number | string = remainder ? `${quotient}……${remainder}` : quotient;
     if (question.answer !== expected) errors.push('除法竖式答案错误');
     if (question.metadata?.quotient !== quotient || question.metadata?.remainder !== remainder) errors.push('商和余数元数据错误');

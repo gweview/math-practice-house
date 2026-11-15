@@ -7,8 +7,34 @@ import './math.css';
 const PRACTICE_TITLES: Record<WorksheetConfig['practiceMode'], string> = {
   standard: '数学练习',
   verticalAddSub: '加减法竖式练习',
-  verticalMulDiv: '乘除法竖式练习'
+  verticalMulDiv: '乘除法竖式练习',
+  verticalAll: '竖式计算综合练习'
 };
+
+function resolveSheetTitle(config: WorksheetConfig): string {
+  if (config.practiceMode === 'standard') return PRACTICE_TITLES.standard;
+  if (config.verticalOperations.length === 1) {
+    const op = config.verticalOperations[0];
+    if (op === 'division') {
+      if (config.verticalDivisionMode === 'exact') return '除法竖式专项 · 整除练习';
+      if (config.verticalDivisionMode === 'remainder') return '除法竖式专项 · 有余数除法';
+      if (config.verticalDivisionMode === 'zeroQuotient') return '除法竖式专项 · 商含0练习';
+      if (config.verticalDivisionMode === 'twoDigitDivisor') return '除法竖式专项 · 除数是两位数';
+      return '除法竖式专项练习';
+    }
+    if (op === 'multiplication') {
+      if (config.verticalMultiplicationMode === 'threeByOne') return '乘法竖式专项 · 三位数乘一位数';
+      if (config.verticalMultiplicationMode === 'twoByTwo') return '乘法竖式专项 · 两位数乘两位数';
+      return '乘法竖式专项练习';
+    }
+    if (op === 'subtraction') {
+      if (config.verticalSubtractionMode === 'acrossZero') return '减法竖式专项 · 隔位退位练习';
+      return '减法竖式专项练习';
+    }
+    if (op === 'addition') return '加法竖式专项练习';
+  }
+  return PRACTICE_TITLES[config.practiceMode] ?? '竖式计算练习';
+}
 
 const EMBEDDED_RESPONSE_TYPES = new Set<ProblemType>([
   'numberRecognition',
@@ -25,7 +51,7 @@ function Field({ show, label, suffix }: { show: boolean; label: string; suffix?:
 }
 
 function PageHeader({ answer, config, answerMode, seed }: { answer: boolean; config: WorksheetConfig; answerMode: MathSheet['answerMode']; seed?: string }) {
-  const title = PRACTICE_TITLES[config.practiceMode];
+  const title = resolveSheetTitle(config);
   return <header className="sheet-header">
     <div className="sheet-header-main">
       <div className="sheet-title">
@@ -59,9 +85,12 @@ function VerticalExpression({ question, answer }: { question: Question; answer: 
   const columns = Math.max(2, ...values.map(value => String(Math.abs(value)).length));
   const columnStyle = { '--vertical-columns': columns } as CSSProperties;
   const operator = question.operators?.[0] ?? '';
+  const isTwoDigitMultiplier = question.type === 'verticalMultiplication' && question.operands[1] >= 10;
+  const firstPartial = isTwoDigitMultiplier ? question.operands[0] * (question.operands[1] % 10) : undefined;
+  const secondPartial = isTwoDigitMultiplier ? `${question.operands[0] * Math.floor(question.operands[1] / 10)} ` : undefined;
 
   return <span
-    className="vertical-expression"
+    className={`vertical-expression${isTwoDigitMultiplier ? ' vertical-expression--partial' : ''}`}
     style={columnStyle}
     data-digit-columns={columns}
     aria-label={`${question.text}${answer ? `，答案 ${question.answer}` : '，列竖式计算'}`}
@@ -75,29 +104,101 @@ function VerticalExpression({ question, answer }: { question: Question; answer: 
     <span className="vertical-number-row vertical-second-row" aria-hidden="true">
       <i>{operator}</i><DigitCells value={question.operands[1]} columns={columns} />
     </span>
+    {isTwoDigitMultiplier && <>
+      <span className={`vertical-partial-row${answer ? ' answered' : ''}`} aria-hidden="true">
+        <i /><DigitCells value={answer ? firstPartial : undefined} columns={columns} />
+      </span>
+      <span className={`vertical-partial-row vertical-partial-second${answer ? ' answered' : ''}`} aria-hidden="true">
+        <i /><DigitCells value={answer ? secondPartial : undefined} columns={columns} />
+      </span>
+    </>}
     <span className={`vertical-result-row${answer ? ' answered' : ''}`} aria-hidden="true">
       <i /><DigitCells value={answer ? question.answer : undefined} columns={columns} />
     </span>
   </span>;
 }
 
+export interface LongDivisionStep {
+  minuend?: string;
+  product: string;
+}
+
+export function computeLongDivisionSteps(dividend: number, divisor: number, columns: number): { steps: LongDivisionStep[]; finalRemainder: string } {
+  const digits = [...String(dividend)].map(Number);
+  const padAt = (value: number, endColumn: number) => String(value).padStart(endColumn + 1, ' ').padEnd(columns, ' ');
+  const steps: LongDivisionStep[] = [];
+  let current = 0;
+  let started = false;
+  let pendingMinuend: string | undefined;
+
+  for (let index = 0; index < digits.length; index++) {
+    current = current * 10 + digits[index];
+    if (started && pendingMinuend === undefined) {
+      pendingMinuend = padAt(current, index);
+    } else if (started) {
+      pendingMinuend = padAt(current, index);
+    }
+    if (!started && current < divisor && index < digits.length - 1) continue;
+    started = true;
+    const quotientDigit = Math.floor(current / divisor);
+    if (quotientDigit > 0 || steps.length === 0) {
+      const product = quotientDigit * divisor;
+      steps.push({
+        minuend: steps.length > 0 ? pendingMinuend : undefined,
+        product: padAt(product, index)
+      });
+      current -= product;
+      pendingMinuend = undefined;
+    }
+  }
+  return {
+    steps,
+    finalRemainder: padAt(current, digits.length - 1)
+  };
+}
+
 function LongDivisionExpression({ question, answer }: { question: Question; answer: boolean }) {
-  const quotient = question.metadata?.quotient ?? Math.floor(question.operands[0] / question.operands[1]);
-  const remainder = Number(question.metadata?.remainder ?? question.operands[0] % question.operands[1]);
+  const dividend = question.operands[0];
+  const divisor = question.operands[1];
+  const quotient = Number(question.metadata?.quotient ?? Math.floor(dividend / divisor));
+  const remainder = Number(question.metadata?.remainder ?? dividend % divisor);
+  const columns = Math.max(2, String(Math.abs(dividend)).length);
+  const columnStyle = { '--vertical-columns': columns } as CSSProperties;
+  const divisionPlan = computeLongDivisionSteps(dividend, divisor, columns);
+  const hasRemainder = remainder > 0;
+
   return <span
     className="long-division-expression"
-    aria-label={`${question.operands[0]} 除以 ${question.operands[1]}${answer ? `，商 ${quotient}，余数 ${remainder}` : '，列竖式计算'}`}
+    style={columnStyle}
+    data-digit-columns={columns}
+    data-has-remainder={hasRemainder ? 'true' : 'false'}
+    aria-label={`${dividend} 除以 ${divisor}${answer ? (hasRemainder ? `，商 ${quotient}，余数 ${remainder}` : `，商 ${quotient}`) : '，列竖式计算'}`}
   >
     <span className={`long-division-quotient${answer ? ' answered' : ''}`} aria-hidden="true">
-      {answer ? quotient : null}
+      <i className="long-division-divisor-spacer">{divisor}</i>
+      {answer
+        ? <DigitCells value={quotient} columns={columns} />
+        : Array.from({ length: columns }, (_, index) => <b className="quotient-guide-cell" key={index} />)}
     </span>
     <span className="long-division-row" aria-hidden="true">
-      <span className="long-division-divisor">{question.operands[1]}</span>
-      <span className="long-division-dividend">{question.operands[0]}</span>
+      <span className="long-division-divisor">{divisor}</span>
+      <span className="long-division-dividend"><DigitCells value={dividend} columns={columns} /></span>
     </span>
-    <span className="long-division-work" aria-hidden="true"><i /><i /><i /></span>
+    <span className={`long-division-work${answer ? ' answered' : ''}`} aria-hidden="true">
+      {answer ? <>
+        {divisionPlan.steps.map((step, index) => <Fragment key={index}>
+          {step.minuend && <span className="long-division-step-row"><i /><DigitCells value={step.minuend} columns={columns} /></span>}
+          <span className="long-division-step-row long-division-step-product"><i /><DigitCells value={step.product} columns={columns} /></span>
+        </Fragment>)}
+        <span className="long-division-step-row long-division-step-remainder"><i /><DigitCells value={divisionPlan.finalRemainder} columns={columns} /></span>
+      </> : Array.from({ length: Math.max(2, Math.min(3, divisionPlan.steps.length + 1)) }, (_, index) => <i key={index} />)}
+    </span>
     <span className={`long-division-result${answer ? ' answered' : ''}`} aria-hidden="true">
-      {answer ? `商 ${quotient}，余数 ${remainder}` : '余数：'}<b />
+      {answer
+        ? (hasRemainder ? `商 ${quotient}，余数 ${remainder}` : `商 ${quotient}`)
+        : hasRemainder
+          ? <>商：<b /> 余数：<b /></>
+          : <>商：<b /></>}
     </span>
   </span>;
 }
@@ -141,7 +242,9 @@ function QuestionView({ question, number, config, answer }: {
   const hasResponseBox = question.text.includes('□');
   const textParts = hasResponseBox ? question.text.split('□') : [];
   const showLine = config.showLines && !answer && !hasResponseBox && !EMBEDDED_RESPONSE_TYPES.has(question.type);
-  return <div className={`question ${question.layout}${answer ? ' answered' : ''}`} data-testid="question" data-question-number={number}>
+  const isLongInline = question.layout === 'inline' && question.text.length > 16;
+  const isMultiStepWord = question.layout === 'word' && ((question.operators?.length ?? 0) >= 2 || Number(question.metadata?.steps ?? 1) >= 2);
+  return <div className={`question ${question.layout}${isLongInline ? ' question--long-inline' : ''}${answer ? ' answered' : ''}`} data-testid="question" data-question-number={number}>
     {config.showNumbers && <span className="q-number">{number}.</span>}
     <span className="q-text">{hasResponseBox
       ? textParts.map((part, partIndex) => <Fragment key={`${question.id}-${partIndex}`}>
@@ -149,7 +252,11 @@ function QuestionView({ question, number, config, answer }: {
         {partIndex < textParts.length - 1 && <span className={`fill-box${answer ? ' answered' : ''}`} aria-label={answer ? `答案 ${question.answer}` : '填空处'}>{answer ? question.answer : null}</span>}
       </Fragment>)
       : preserveSpaces(question.text)}</span>
-    {showLine && <span className={question.layout === 'word' ? 'answer-line answer-line--word' : 'answer-line'} aria-hidden="true" />}
+    {showLine && (question.layout === 'word'
+      ? isMultiStepWord
+        ? <span className="word-answer-zone" aria-hidden="true"><span className="answer-line answer-line--word-step" /><span className="answer-line answer-line--word" /></span>
+        : <span className="answer-line answer-line--word" aria-hidden="true" />
+      : <span className="answer-line" aria-hidden="true" />)}
     {answer && !hasResponseBox && <><strong className="answer-value">{question.answerDetails?.display ?? question.answer}</strong>{question.answerDetails?.steps?.length
       ? <ol className="solution-steps">{question.answerDetails.steps.map(step => <li key={step}>{step}</li>)}</ol>
       : null}</>}

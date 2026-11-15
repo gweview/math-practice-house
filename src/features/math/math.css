@@ -60,11 +60,16 @@ button:focus-visible,input:focus-visible,.check:has(input:focus-visible),.switch
 .math-sheet .q-text{min-width:0}
 .math-sheet .question:not(.word):not(.structured):not(.wide){white-space:nowrap;word-break:keep-all}
 .math-sheet .question:not(.word):not(.structured):not(.wide) .q-text{flex:0 0 auto;white-space:nowrap}
+.math-sheet .question.question--long-inline{white-space:normal;flex-wrap:wrap;row-gap:calc(1 * var(--sheet-mm))}
+.math-sheet .question.question--long-inline .q-text{flex:1 1 65%;white-space:normal;overflow-wrap:anywhere}
 .math-sheet .question.word .q-text{white-space:normal;overflow-wrap:anywhere}
 .math-sheet .question.structured .q-text{white-space:normal;overflow-wrap:anywhere;word-break:break-word}
 .math-sheet .fill-box{display:inline-flex;align-items:center;justify-content:center;width:calc(16 * var(--sheet-mm));min-width:calc(16 * var(--sheet-mm));height:calc(9 * var(--sheet-mm));margin:0 calc(1.2 * var(--sheet-mm));border:max(1px,calc(.35 * var(--sheet-mm))) solid #59625f;border-radius:calc(.7 * var(--sheet-mm));vertical-align:middle;color:#a83f2c;font-weight:800;font-variant-numeric:tabular-nums}
 .math-sheet .answer-line{display:inline-block;flex:1;min-width:calc(12 * var(--sheet-mm));margin-left:calc(1.2 * var(--sheet-mm));border-bottom:max(1px,calc(.25 * var(--sheet-mm))) solid #606866}
 .math-sheet .answer-line--word{display:block;width:100%;height:calc(8 * var(--sheet-mm));margin:calc(2 * var(--sheet-mm)) 0 0;border-bottom:max(1px,calc(.25 * var(--sheet-mm))) solid #8d9794}
+.math-sheet .word-answer-zone{display:grid;gap:calc(1.6 * var(--sheet-mm));margin-top:calc(1.5 * var(--sheet-mm))}
+.math-sheet .word-answer-zone .answer-line--word-step,.math-sheet .word-answer-zone .answer-line--word{display:block;width:100%;height:calc(5.2 * var(--sheet-mm));margin:0;border-bottom:max(1px,calc(.24 * var(--sheet-mm))) dashed #98a4a0}
+.math-sheet .word-answer-zone .answer-line--word{border-bottom-style:solid;border-bottom-color:#7c8884}
 .math-sheet .answer-value{margin-left:calc(2 * var(--sheet-mm));color:#a83f2c;font-weight:900}
 .math-sheet .question.word .answer-value{display:inline-block;margin:calc(1.4 * var(--sheet-mm)) 0 0 calc(2 * var(--sheet-mm));padding:calc(.5 * var(--sheet-mm)) calc(1.5 * var(--sheet-mm));border-radius:calc(1 * var(--sheet-mm));background:#fff1eb}
 .paper.math-sheet.answer-pages{display:none}
@@ -94,24 +99,33 @@ button:focus-visible,input:focus-visible,.check:has(input:focus-visible),.switch
 .math-sheet .vertical-carry-row b{margin:0 .12em;border-bottom:1px dotted #b2c2bd}
 .math-sheet .vertical-number-row{min-height:1.28em}
 .math-sheet .vertical-second-row{padding-bottom:.12em;border-bottom:max(1px,calc(.42 * var(--sheet-mm))) solid currentColor}
+.math-sheet .vertical-partial-row{min-height:1.15em;color:#5a6d67;font-size:.92em}
+.math-sheet .vertical-partial-row:not(.answered) .vertical-digit{border-bottom:1px dotted #c6d4d0;margin:0 .08em}
+.math-sheet .vertical-partial-second{padding-bottom:.1em;border-bottom:max(1px,calc(.32 * var(--sheet-mm))) solid #5a6d67}
+.math-sheet .vertical-expression--partial{font-size:1.05em;line-height:1.12}
 .math-sheet .vertical-result-row{min-height:1.55em;padding-top:.14em}
 .math-sheet .vertical-result-row.answered{color:#9e3929;font-weight:900}
 .math-sheet .vertical-digit{display:grid;place-items:center;min-width:0}
 
 .math-sheet .question.long-division{position:relative;display:flex;align-items:flex-start}
-.math-sheet .long-division-expression{position:static;align-self:center;display:flex;flex-direction:column;width:min(calc(46 * var(--sheet-mm)),82%);min-height:0;margin:auto;font-size:1.04em;font-variant-numeric:tabular-nums;color:#202826}
-.math-sheet .long-division-quotient{flex:none;min-height:1.45em;padding-right:calc(3 * var(--sheet-mm));text-align:right;font-weight:900}
-.math-sheet .long-division-quotient:not(.answered){background:linear-gradient(90deg,transparent 45%,#eaf0ee 45%,#eaf0ee 47%,transparent 47%) bottom right/50% 1px no-repeat}
-.math-sheet .long-division-row{display:grid;grid-template-columns:auto minmax(calc(24 * var(--sheet-mm)),1fr);align-items:start}
-.math-sheet .long-division-divisor{padding:calc(1.5 * var(--sheet-mm)) calc(2.5 * var(--sheet-mm)) 0 0;text-align:right}
-.math-sheet .long-division-dividend{min-height:1.8em;padding:calc(1.5 * var(--sheet-mm)) calc(3 * var(--sheet-mm));border-top:max(1px,calc(.4 * var(--sheet-mm))) solid currentColor;border-left:max(1px,calc(.4 * var(--sheet-mm))) solid currentColor;border-radius:calc(1.2 * var(--sheet-mm)) 0 0;text-align:right}
-.math-sheet .long-division-work{display:grid;gap:calc(1.4 * var(--sheet-mm));margin:calc(1.2 * var(--sheet-mm)) 0 0 calc(11 * var(--sheet-mm))}
-.math-sheet .long-division-work i{display:block;height:calc(3.4 * var(--sheet-mm));border-bottom:1px dotted #aebbb7}
-.math-sheet .long-division-result{display:flex;align-items:end;justify-content:flex-end;min-height:1.4em;margin-top:calc(1.2 * var(--sheet-mm));font-size:.7em;font-weight:700;color:#687873}
-.math-sheet .long-division-result b{display:inline-block;width:calc(10 * var(--sheet-mm));height:1em;margin-left:calc(1 * var(--sheet-mm));border-bottom:1px solid currentColor}
+.math-sheet .long-division-expression{position:static;align-self:center;display:flex;flex-direction:column;width:min(calc(48 * var(--sheet-mm)),86%);min-height:0;margin:auto;font-size:1.02em;font-variant-numeric:tabular-nums;color:#202826}
+.math-sheet .long-division-quotient{flex:none;display:grid;grid-template-columns:auto repeat(var(--vertical-columns,3),1.1em);justify-content:end;align-items:center;min-height:1.35em;padding-right:calc(2 * var(--sheet-mm));font-weight:900}
+.math-sheet .long-division-quotient.answered{color:#9e3929}
+.math-sheet .long-division-divisor-spacer{visibility:hidden;padding-right:calc(2.5 * var(--sheet-mm));font-style:normal}
+.math-sheet .quotient-guide-cell{display:block;height:1.15em;margin:0 .1em;border-bottom:1px dashed #b9c9c4}
+.math-sheet .long-division-row{display:grid;grid-template-columns:auto auto;justify-content:end;align-items:start}
+.math-sheet .long-division-divisor{padding:calc(1.2 * var(--sheet-mm)) calc(2.2 * var(--sheet-mm)) 0 0;text-align:right;font-weight:700}
+.math-sheet .long-division-dividend{display:grid;grid-template-columns:repeat(var(--vertical-columns,3),1.1em);min-height:1.65em;padding:calc(1.2 * var(--sheet-mm)) calc(2 * var(--sheet-mm)) calc(.6 * var(--sheet-mm)) calc(1.8 * var(--sheet-mm));border-top:max(1px,calc(.4 * var(--sheet-mm))) solid currentColor;border-left:max(1px,calc(.4 * var(--sheet-mm))) solid currentColor;border-radius:calc(1.2 * var(--sheet-mm)) 0 0;text-align:right}
+.math-sheet .long-division-work{display:grid;gap:calc(1.2 * var(--sheet-mm));margin:calc(.8 * var(--sheet-mm)) 0 0 calc(9 * var(--sheet-mm))}
+.math-sheet .long-division-work>i{display:block;height:calc(3.2 * var(--sheet-mm));border-bottom:1px dotted #aebbb7}
+.math-sheet .long-division-work.answered{gap:calc(.3 * var(--sheet-mm));margin-left:0;padding-right:calc(2 * var(--sheet-mm))}
+.math-sheet .long-division-step-row{display:grid;grid-template-columns:auto repeat(var(--vertical-columns,3),1.1em);justify-content:end;font-size:.88em;line-height:1.15;color:#4a5d57}
+.math-sheet .long-division-step-product{padding-bottom:.08em;border-bottom:max(1px,calc(.26 * var(--sheet-mm))) solid #7b8d87}
+.math-sheet .long-division-step-remainder{color:#9e3929;font-weight:800}
+.math-sheet .long-division-result{display:flex;align-items:end;justify-content:flex-end;gap:calc(1.2 * var(--sheet-mm));min-height:1.35em;margin-top:calc(1 * var(--sheet-mm));font-size:.7em;font-weight:700;color:#687873}
+.math-sheet .long-division-result b{display:inline-block;width:calc(8.5 * var(--sheet-mm));height:1em;margin-left:calc(.5 * var(--sheet-mm));border-bottom:1px solid currentColor}
 .math-sheet .long-division-result.answered{color:#9e3929;font-size:.76em;font-weight:900}
 .math-sheet .long-division-result.answered b{display:none}
-.math-sheet .question.long-division.answered .long-division-work{opacity:.32}
 .math-sheet .fraction-visual rect{fill:#fff;stroke:currentColor;stroke-width:1.5}
 .math-sheet .fraction-visual rect.shaded{fill:#202826}
 .math-sheet .question-multipart{margin:.3em 0;padding-left:1.4em;line-height:1.8}

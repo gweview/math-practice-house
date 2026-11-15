@@ -138,4 +138,94 @@ describe('vertical unification', () => {
       expect(Number(question.metadata?.quotient)).toBeGreaterThanOrEqual(10);
     }
   });
+
+  it('supports verticalAll mode mixing all four vertical operations on a single page', () => {
+    const sheet = generateWorksheet({
+      ...base,
+      stage: 'grade3',
+      rangeMode: 'curriculum',
+      difficulty: 'standard',
+      practiceMode: 'verticalAll',
+      verticalOperations: ['addition', 'subtraction', 'multiplication', 'division'],
+      verticalPages: 1
+    }, { seed: 'vertical-all-four' });
+    expect(sheet.questions).toHaveLength(8);
+    expect(sheet.questions.filter(q => q.type === 'verticalAddition')).toHaveLength(2);
+    expect(sheet.questions.filter(q => q.type === 'verticalSubtraction')).toHaveLength(2);
+    expect(sheet.questions.filter(q => q.type === 'verticalMultiplication')).toHaveLength(2);
+    expect(sheet.questions.filter(q => q.type === 'verticalDivision')).toHaveLength(2);
+  });
+
+  it('supports specialized verticalDivisionMode: exact, remainder, zeroQuotient, and twoDigitDivisor', () => {
+    const exactSheet = generateWorksheet({
+      ...base,
+      practiceMode: 'verticalMulDiv',
+      verticalOperations: ['division'],
+      verticalDivisionMode: 'exact',
+      verticalPages: 1
+    }, { seed: 'vertical-div-exact' });
+    expect(exactSheet.questions).toHaveLength(8);
+    expect(exactSheet.questions.every(q => Number(q.metadata?.remainder) === 0)).toBe(true);
+
+    const remSheet = generateWorksheet({
+      ...base,
+      practiceMode: 'verticalMulDiv',
+      verticalOperations: ['division'],
+      verticalDivisionMode: 'remainder',
+      verticalPages: 1
+    }, { seed: 'vertical-div-rem' });
+    expect(remSheet.questions).toHaveLength(8);
+    expect(remSheet.questions.every(q => Number(q.metadata?.remainder) > 0 && Number(q.metadata?.remainder) < q.operands[1])).toBe(true);
+
+    const zeroQSheet = generateWorksheet({
+      ...base,
+      practiceMode: 'verticalMulDiv',
+      verticalOperations: ['division'],
+      verticalDivisionMode: 'zeroQuotient',
+      verticalPages: 1
+    }, { seed: 'vertical-div-zeroq' });
+    expect(zeroQSheet.questions).toHaveLength(8);
+    expect(zeroQSheet.questions.every(q => String(q.metadata?.quotient).includes('0'))).toBe(true);
+
+    const twoDigitSheet = generateWorksheet({
+      ...base,
+      stage: 'grade4',
+      practiceMode: 'verticalMulDiv',
+      verticalOperations: ['division'],
+      verticalDivisionMode: 'twoDigitDivisor',
+      verticalPages: 1
+    }, { seed: 'vertical-div-2digit' });
+    expect(twoDigitSheet.questions).toHaveLength(8);
+    expect(twoDigitSheet.questions.every(q => q.operands[1] >= 11 && q.operands[1] <= 99)).toBe(true);
+  });
+
+  it('supports specialized verticalMultiplicationMode and verticalSubtractionMode', () => {
+    const threeByOne = generateWorksheet({
+      ...base,
+      practiceMode: 'verticalMulDiv',
+      verticalOperations: ['multiplication'],
+      verticalMultiplicationMode: 'threeByOne',
+      verticalPages: 1
+    }, { seed: 'vertical-mul-3x1' });
+    expect(threeByOne.questions.every(q => q.operands[0] >= 100 && q.operands[1] >= 2 && q.operands[1] <= 9)).toBe(true);
+
+    const twoByTwo = generateWorksheet({
+      ...base,
+      stage: 'grade4',
+      practiceMode: 'verticalMulDiv',
+      verticalOperations: ['multiplication'],
+      verticalMultiplicationMode: 'twoByTwo',
+      verticalPages: 1
+    }, { seed: 'vertical-mul-2x2' });
+    expect(twoByTwo.questions.every(q => q.operands[0] >= 11 && q.operands[1] >= 11)).toBe(true);
+
+    const acrossZero = generateWorksheet({
+      ...base,
+      practiceMode: 'verticalAddSub',
+      verticalOperations: ['subtraction'],
+      verticalSubtractionMode: 'acrossZero',
+      verticalPages: 1
+    }, { seed: 'vertical-sub-zero' });
+    expect(acrossZero.questions.every(q => q.metadata?.regrouping === true && (q.operands[0] % 10 === 0 || Math.floor(q.operands[0] / 10) % 10 === 0))).toBe(true);
+  });
 });

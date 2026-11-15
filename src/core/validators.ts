@@ -5,14 +5,21 @@ import { getQuestionDefinition, getQuestionHandler, isRegisteredProblemType } fr
 
 const STAGES = ['preschool', 'grade1', 'grade2', 'grade3', 'grade4', 'grade5', 'grade6'];
 const DIFFICULTIES = ['entry', 'easy', 'standard', 'advanced', 'challenge'];
-const PRACTICE_MODES: PracticeMode[] = ['standard', 'verticalAddSub', 'verticalMulDiv'];
+const PRACTICE_MODES: PracticeMode[] = ['standard', 'verticalAddSub', 'verticalMulDiv', 'verticalAll'];
 const VERTICAL_OPERATIONS: VerticalOperation[] = ['addition', 'subtraction', 'multiplication', 'division'];
+const VERTICAL_DIVISION_MODES = ['mixed', 'exact', 'remainder', 'zeroQuotient', 'twoDigitDivisor'];
+const VERTICAL_MULTIPLICATION_MODES = ['mixed', 'threeByOne', 'twoByTwo'];
+const VERTICAL_SUBTRACTION_MODES = ['mixed', 'acrossZero'];
 const VERTICAL_TYPES = new Set(['verticalAddition', 'verticalSubtraction', 'verticalMultiplication', 'verticalDivision']);
 
 export function normalizeConfig(config: WorksheetConfig): WorksheetConfig {
   const practiceMode = config.practiceMode ?? 'standard';
   const verticalPages = Math.min(MAX_VERTICAL_PAGES, Math.max(1, Math.round(Number(config.verticalPages) || 1)));
-  const defaultOperations: VerticalOperation[] = practiceMode === 'verticalMulDiv' ? ['multiplication', 'division'] : ['addition', 'subtraction'];
+  const defaultOperations: VerticalOperation[] = practiceMode === 'verticalMulDiv'
+    ? ['multiplication', 'division']
+    : practiceMode === 'verticalAll'
+      ? ['addition', 'subtraction', 'multiplication', 'division']
+      : ['addition', 'subtraction'];
   const verticalOperations = Array.isArray(config.verticalOperations) ? config.verticalOperations : defaultOperations;
   const generationMode = config.generationMode === 'pages' ? 'pages' : 'count';
   const answerMode = config.answerMode === 'none' || config.answerMode === 'compact' || config.answerMode === 'detailed' ? config.answerMode : config.answerPage ? 'detailed' : 'none';
@@ -56,9 +63,24 @@ export function validateConfig(config: WorksheetConfig): { valid: boolean; error
     }
   }
   if (config.practiceMode !== 'standard') {
-    const operations = Array.isArray(config.verticalOperations) ? config.verticalOperations : []; const allowed: VerticalOperation[] = config.practiceMode === 'verticalAddSub' ? ['addition', 'subtraction'] : ['multiplication', 'division'];
-    if (!operations.length) errors.push('请至少选择一种竖式运算'); else if (operations.some(operation => !VERTICAL_OPERATIONS.includes(operation) || !allowed.includes(operation))) errors.push('竖式运算与练习模式不一致'); if (config.count !== config.verticalPages * VERTICAL_PAGE_SIZE) errors.push(`竖式练习必须每页 ${VERTICAL_PAGE_SIZE} 题`);
-    if (config.rangeMode === 'curriculum' && validStage) { if (config.practiceMode === 'verticalAddSub' && config.stage === 'preschool') errors.push('数学启蒙阶段尚未开放加减法竖式'); if (config.practiceMode === 'verticalMulDiv' && !['grade3', 'grade4', 'grade5', 'grade6'].includes(config.stage)) errors.push('严格按年级时，乘除法竖式从三年级起开放'); }
+    const operations = Array.isArray(config.verticalOperations) ? config.verticalOperations : [];
+    const allowed: VerticalOperation[] = config.practiceMode === 'verticalAddSub'
+      ? ['addition', 'subtraction']
+      : config.practiceMode === 'verticalMulDiv'
+        ? ['multiplication', 'division']
+        : VERTICAL_OPERATIONS;
+    if (!operations.length) errors.push('请至少选择一种竖式运算');
+    else if (operations.some(operation => !VERTICAL_OPERATIONS.includes(operation) || !allowed.includes(operation))) errors.push('竖式运算与练习模式不一致');
+    if (config.count !== config.verticalPages * VERTICAL_PAGE_SIZE) errors.push(`竖式练习必须每页 ${VERTICAL_PAGE_SIZE} 题`);
+    if (config.verticalDivisionMode && !VERTICAL_DIVISION_MODES.includes(config.verticalDivisionMode)) errors.push('除法竖式模式无效');
+    if (config.verticalMultiplicationMode && !VERTICAL_MULTIPLICATION_MODES.includes(config.verticalMultiplicationMode)) errors.push('乘法竖式模式无效');
+    if (config.verticalSubtractionMode && !VERTICAL_SUBTRACTION_MODES.includes(config.verticalSubtractionMode)) errors.push('减法竖式模式无效');
+    if (config.rangeMode === 'curriculum' && validStage) {
+      if ((config.practiceMode === 'verticalAddSub' || config.practiceMode === 'verticalAll') && config.stage === 'preschool') errors.push('数学启蒙阶段尚未开放加减法竖式');
+      const hasMulDiv = config.practiceMode === 'verticalMulDiv' || (config.practiceMode === 'verticalAll' && operations.some(op => op === 'multiplication' || op === 'division'));
+      if (hasMulDiv && !['grade3', 'grade4', 'grade5', 'grade6'].includes(config.stage)) errors.push('严格按年级时，乘除法竖式从三年级起开放');
+      if (config.verticalDivisionMode === 'twoDigitDivisor' && !['grade4', 'grade5', 'grade6'].includes(config.stage)) errors.push('严格按年级时，除数是两位数的竖式从四年级起开放');
+    }
   }
   if (config.practiceMode === 'standard' && config.rangeMode === 'curriculum' && validStage && Array.isArray(config.types)) { const beyondStage = config.types.filter(type => !isTypeAllowedForStage(type, config.stage)); if (beyondStage.length) errors.push('所选题型包含当前学习阶段尚未覆盖的内容'); }
   return { valid: errors.length === 0, errors };

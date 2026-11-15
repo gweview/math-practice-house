@@ -61,8 +61,10 @@ function regroupingQuota(type: ProblemType, target: number, profile: ProblemProf
   if (!SMALL_REGROUPING_TYPES.has(type)) return requested;
   let capacity = 0;
   if (type === 'addition10') {
+    // Addition signatures are canonical under commutativity, so capacity
+    // counts unordered pairs (a <= b); subtraction below stays ordered.
     for (let a = 1; a <= profile.max; a++) {
-      for (let b = 1; a + b <= profile.max; b++) {
+      for (let b = a; a + b <= profile.max; b++) {
         if (a % 10 + b % 10 >= 10) capacity++;
       }
     }
@@ -79,8 +81,9 @@ function minimumTrivialQuota(type: ProblemType, target: number, profile: Problem
   const requested = Math.round(target * profile.trivialRate);
   if (type !== 'addition10' && type !== 'addition20NoCarry') return requested;
   let nonTrivialCapacity = 0;
+  // Both types are canonicalized addition: count unordered pairs (a <= b).
   for (let a = 1; a <= profile.max; a++) {
-    for (let b = 1; a + b <= profile.max; b++) {
+    for (let b = a; a + b <= profile.max; b++) {
       if (type === 'addition10' || a % 10 + b % 10 < 10) nonTrivialCapacity++;
     }
   }
@@ -189,11 +192,20 @@ export function generateWorksheet(input: WorksheetConfig, options: GenerateWorks
     const typeQuestions: Question[] = [];
     let generated = 0;
     let attempts = 0;
+    // The high-range preference is soft distribution shaping, not a quota: a
+    // slot whose distinct high-range pool is exhausted (small types under
+    // isomorphic dedup) relaxes to the full range after 50 failed attempts
+    // instead of spinning until the attempt budget is gone. Carry, trivial,
+    // relation and structural directives are never relaxed.
+    let slotAttempts = 0;
+    let highRangeRelaxed = false;
     while (generated < target && attempts++ < Math.max(500, target * 300)) {
       const quotaIndex = quotaOrder[generated];
       const mode = structural[quotaIndex];
       const directive: GenerationDirective = {
-        highRange: type === 'compareSigns' && !config.allowDuplicates ? undefined : highRangeQuota[quotaIndex],
+        highRange: type === 'compareSigns' && !config.allowDuplicates
+          ? undefined
+          : highRangeRelaxed ? false : highRangeQuota[quotaIndex],
         trivial: trivialQuota[quotaIndex], carry: carryQuota[quotaIndex], mixed: mixedQuota[quotaIndex],
         relation: relations[quotaIndex], equalFraction: equalFractions[quotaIndex],
         reverse: definition.directives?.reverse ? mode === 'reverse' : undefined,
@@ -207,6 +219,14 @@ export function generateWorksheet(input: WorksheetConfig, options: GenerateWorks
         difficultyScores.set(generatedQuestion.id, scoreQuestionDifficulty(question, profile));
         typeQuestions.push(generatedQuestion);
         generated++;
+        slotAttempts = 0;
+        highRangeRelaxed = false;
+      } else {
+        slotAttempts++;
+        if (slotAttempts >= 50 && !highRangeRelaxed && highRangeQuota[quotaIndex]) {
+          highRangeRelaxed = true;
+          slotAttempts = 0;
+        }
       }
     }
     if (generated < target) throw new Error(`题型 ${type} 只能生成 ${generated} 道不重复题目，请减少题量、增加题型或允许重复`);

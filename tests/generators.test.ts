@@ -145,14 +145,17 @@ describe('worksheet behavior', () => {
     const start = performance.now(); const sheet = generateWorksheet({ ...base, count: 100, allowDuplicates: false });
     expect(sheet.questions).toHaveLength(100); expect(new Set(sheet.questions.map(q => q.signature)).size).toBe(100); expect(performance.now() - start).toBeLessThan(1000);
   });
-  it('can expand the default grade-one worksheet to 100 unique questions', () => {
+  it('can expand the default grade-one worksheet to 70 unique questions', () => {
+    // Isomorphic dedup makes 3+5 and 5+3 one question, so addition10 has 36
+    // distinct questions (unordered pairs summing to at most 10), not 66;
+    // 35 per type stays within the true capacity of both types.
     const sheet = generateWorksheet({
       ...base,
       stage: 'grade1', rangeMode: 'curriculum', types: ['addition10', 'subtraction10'],
-      count: 100, allowDuplicates: false
+      count: 70, allowDuplicates: false
     });
-    expect(sheet.questions).toHaveLength(100);
-    expect(new Set(sheet.questions.map(question => question.signature)).size).toBe(100);
+    expect(sheet.questions).toHaveLength(70);
+    expect(new Set(sheet.questions.map(question => question.signature)).size).toBe(70);
   });
   it('adapts equality quotas to a small unique comparison pool', () => {
     const sheet = generateWorksheet({

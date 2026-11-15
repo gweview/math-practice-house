@@ -42,9 +42,15 @@ function evaluate(operands: number[], operators: string[]): number {
 function expressionQuestion(input: QuestionGenerationInput, type: BasicType, operands: number[], operators: string[]): Question {
   const text = operands.map((value, index) => index ? `${operators[index - 1]} ${value}` : String(value)).join(' ') + ' =';
   const answer = evaluate(operands, operators);
+  // chainAddition is a pure addition chain, so operand order is presentation
+  // only: the signature sorts operands and permutations of one chain count as
+  // the same question. Mixed-operator and subtraction chains keep text order.
+  const signature = type === 'chainAddition'
+    ? `${type}:${[...operands].sort((left, right) => left - right).join(' + ')} =`
+    : `${type}:${text}`;
   return {
     id: input.createId(), type, text, answer, operands, operators,
-    signature: `${type}:${text}`, layout: text.length > 15 ? 'wide' : 'inline',
+    signature, layout: text.length > 15 ? 'wide' : 'inline',
     answerDetails: { display: String(answer), protocol: answerProtocol(integerAnswer(answer)) },
     metadata: {
       terms: operands.length,

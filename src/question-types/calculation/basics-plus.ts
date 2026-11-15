@@ -181,8 +181,11 @@ export function generateSameDenominatorFraction(input: QuestionGenerationInput):
   const n1 = randomInt(1, d - 1, input.random);
   const n2Cap = allowOverOne ? d - 1 : Math.max(1, d - n1);
   const n2 = randomInt(1, n2Cap, input.random);
+  // Fraction addition commutes, so the signature sorts the numerators;
+  // subtraction forms keep order.
+  const signature = `sameDenominatorFraction:add:${Math.min(n1, n2)}/${d}:${Math.max(n1, n2)}/${d}`;
   return makeQuestion(input, 'sameDenominatorFraction', fractionText(form, n1, n2, d), canonicalFraction(n1 + n2, d), [n1, n2, d], {
-    metadata: { form }, operators: ['+'], signature: `sameDenominatorFraction:add:${n1}/${d}:${n2}/${d}`
+    metadata: { form }, operators: ['+'], signature
   });
 }
 

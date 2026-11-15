@@ -8,7 +8,12 @@ export { hasAdditionRegrouping, hasSubtractionRegrouping } from './sampling';
 
 type ArithmeticLayout = 'inline' | 'vertical';
 
-/** Build an addition/subtraction question from already-sampled operands. */
+/** Build an addition/subtraction question from already-sampled operands.
+ *
+ * Addition signatures are canonical under commutativity: 3+5 and 5+3 are the
+ * same question, so the signature sorts the operands and the worksheet
+ * deduplicator never puts both on one sheet. Subtraction keeps operand order:
+ * 8-3 and 3-8 are different questions. */
 export function buildArithmeticQuestion(type: ProblemType, a: number, b: number, op: '+' | '-', layout: ArithmeticLayout, random: RandomSource): Question {
   return {
     id: id(random),
@@ -17,7 +22,7 @@ export function buildArithmeticQuestion(type: ProblemType, a: number, b: number,
     answer: op === '+' ? a + b : a - b,
     operands: [a, b],
     operators: [op],
-    signature: `${type}:${a}${op}${b}`,
+    signature: op === '+' ? `${type}:${Math.min(a, b)}+${Math.max(a, b)}` : `${type}:${a}${op}${b}`,
     layout,
     metadata: {
       regrouping: op === '+' ? hasAdditionRegrouping(a, b) : hasSubtractionRegrouping(a, b),

@@ -93,8 +93,12 @@ function distinctPair(max: number, highRangeRate: number, random: RandomSource):
 export function generateComparison(input: QuestionGenerationInput): Question {
   const [left, right] = distinctPair(maxFor(input), input.profile.highRangeRate, input.random);
   const answer = Math.max(left, right);
+  // Display order is randomized, so the signature sorts the pair: showing the
+  // same two numbers in the other order is the same question. compareSigns
+  // keeps order because the answer depends on it.
+  const signature = `comparison:${Math.min(left, right)}:${Math.max(left, right)}`;
   return makeQuestion(input, 'comparison', `圈出较大的数：　${left}　${right}`, answer, [left, right], {
-    layout: 'wide', metadata: { relation: left > right ? '>' : '<', semantic: 'choose-larger', magnitude: answer }, signature: `comparison:${left}:${right}`, includeAnswerDetails: false
+    layout: 'wide', metadata: { relation: left > right ? '>' : '<', semantic: 'choose-larger', magnitude: answer }, signature, includeAnswerDetails: false
   });
 }
 

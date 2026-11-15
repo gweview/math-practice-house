@@ -212,7 +212,9 @@ describe('dedicated vertical practice', () => {
   });
 
   it('honors the configured per-page complexity quotas', () => {
-    const expectedComplex = { entry: 2, easy: 3, standard: 4, advanced: 6, challenge: 7 } as const;
+    // Complex quotas now follow the registry carryRate (round(8 * carryRate)):
+    // entry 0 and easy 2 replace the old vertical-only table (2 and 3).
+    const expectedComplex = { entry: 0, easy: 2, standard: 4, advanced: 6, challenge: 7 } as const;
     const expectedRemainders = { entry: 0, easy: 1, standard: 2, advanced: 3, challenge: 4 } as const;
     for (const difficulty of Object.keys(expectedComplex) as Difficulty[]) {
       const addSub = generateWorksheet({

@@ -1,30 +1,56 @@
 import { id, randomInt, shuffle } from '../random-utils';
 import type { RandomSource } from '../../shared/random/seeded-random';
-import { VERTICAL_PAGE_SIZE, type Difficulty, type Question, type VerticalOperation, type WorksheetConfig } from '../types';
+import { VERTICAL_PAGE_SIZE, type ProblemProfile, type Question, type VerticalOperation, type WorksheetConfig } from '../types';
 
-const COMPLEX_PER_PAGE: Record<Difficulty, number> = {
-  entry: 2,
-  easy: 3,
-  standard: 4,
-  advanced: 6,
-  challenge: 7
-};
+/** Difficulty parameters for vertical generation, resolved from a registry
+ * ProblemProfile. Vertical mode used to keep a second difficulty system keyed
+ * by Difficulty; it now reads the same resolved profile every other type
+ * reads, so curriculum caps and difficulty tiers stay in one place.
+ *
+ * reverseRate/multiStepRate do not apply here: a vertical question is a
+ * single forward computation, so there is nothing to reverse or chain. */
+export interface VerticalParameters {
+  /** Operand/result ceiling: the resolved profile max. */
+  max: number;
+  /** Smallest add/sub operand: 2 up to 20, 10 up to 100, max/10 above. */
+  minOperand: number;
+  /** Fraction of max below which add/sub results are rejected. */
+  magnitudeFloorFactor: number;
+  /** Complex (regrouping) questions per 8-question page. */
+  complexPerPage: number;
+  /** Share of divisions carrying a remainder. */
+  remainderRate: number;
+  /** Single-digit factor range for multiplication, and divisor range. */
+  factorMin: number;
+  factorMax: number;
+  /** Largest dividend for division. */
+  maxDividend: number;
+  /** Smallest quotient for division; never below 10 (validator floor). */
+  minQuotient: number;
+  /** Whether complex questions demand two regroupings instead of one. */
+  doubleRegrouping: boolean;
+  /** Whether single-question generation defaults to complex questions. */
+  complexTier: boolean;
+}
 
-const REMAINDER_RATE: Record<Difficulty, number> = {
-  entry: 0,
-  easy: .25,
-  standard: .5,
-  advanced: .75,
-  challenge: .875
-};
-
-const MAGNITUDE_FLOOR: Record<Difficulty, number> = {
-  entry: .35,
-  easy: .5,
-  standard: .62,
-  advanced: .72,
-  challenge: .8
-};
+export function resolveVerticalParameters(profile: ProblemProfile): VerticalParameters {
+  const max = profile.max;
+  const factorMax = Math.min(9, profile.maxFactor);
+  const complexTier = profile.carryRate >= .75;
+  return {
+    max,
+    minOperand: max <= 20 ? 2 : max <= 100 ? 10 : Math.max(10, Math.floor(max / 10)),
+    magnitudeFloorFactor: .35 + .5 * profile.highRangeRate,
+    complexPerPage: Math.round(8 * profile.carryRate),
+    remainderRate: profile.carryRate,
+    factorMin: Math.max(2, factorMax - 4),
+    factorMax,
+    maxDividend: max,
+    minQuotient: Math.max(10, Math.min(20, Math.round(max / 20))),
+    doubleRegrouping: max >= 1000 && complexTier,
+    complexTier
+  };
+}
 
 interface VerticalDirective {
   complex?: boolean;
@@ -73,33 +99,18 @@ function regroupingCountForMultiplication(multiplicand: number, factor: number):
   return count;
 }
 
-function addSubMaximum(config: WorksheetConfig): number {
-  if (config.rangeMode === 'curriculum') {
-    if (config.stage === 'grade1') return 20;
-    if (config.stage === 'grade2') return 100;
-    return 1000;
-  }
-  return config.difficulty === 'entry' || config.difficulty === 'easy' ? 100 : 1000;
+function addSubFloor(params: VerticalParameters): number {
+  // Small ranges keep the old absolute floors (10, or 12 on the complex tier),
+  // capped at max so scaled-down profiles (grade 1 entry: max 6) stay feasible.
+  return params.max <= 20
+    ? Math.min(params.max, params.complexTier ? 12 : 10)
+    : Math.ceil(params.max * params.magnitudeFloorFactor);
 }
 
-function minimumOperand(max: number, difficulty: Difficulty): number {
-  if (max <= 20) return 2;
-  if (max <= 100) return 10;
-  return difficulty === 'entry' || difficulty === 'easy' ? 10 : 100;
-}
-
-function requiredRegroupings(max: number, difficulty: Difficulty, complex: boolean): number {
-  if (!complex) return 0;
-  return max >= 1000 && (difficulty === 'advanced' || difficulty === 'challenge') ? 2 : 1;
-}
-
-function generateVerticalAddition(config: WorksheetConfig, complex: boolean, random: RandomSource): Question {
-  const max = addSubMaximum(config);
-  const min = minimumOperand(max, config.difficulty);
-  const floor = max <= 20
-    ? config.difficulty === 'advanced' || config.difficulty === 'challenge' ? 12 : 10
-    : Math.ceil(max * MAGNITUDE_FLOOR[config.difficulty]);
-  const required = requiredRegroupings(max, config.difficulty, complex);
+function generateVerticalAddition(params: VerticalParameters, complex: boolean, random: RandomSource): Question {
+  const { max, minOperand: min } = params;
+  const floor = addSubFloor(params);
+  const required = complex ? (params.doubleRegrouping ? 2 : 1) : 0;
 
   for (let attempt = 0; attempt < 4000; attempt++) {
     const a = randomInt(min, Math.max(min, max - min), random);
@@ -118,13 +129,10 @@ function generateVerticalAddition(config: WorksheetConfig, complex: boolean, ran
   throw new Error('当前范围无法生成符合难度的加法竖式，请调整年级或难度');
 }
 
-function generateVerticalSubtraction(config: WorksheetConfig, complex: boolean, random: RandomSource): Question {
-  const max = addSubMaximum(config);
-  const min = minimumOperand(max, config.difficulty);
-  const floor = max <= 20
-    ? config.difficulty === 'advanced' || config.difficulty === 'challenge' ? 12 : 10
-    : Math.ceil(max * MAGNITUDE_FLOOR[config.difficulty]);
-  const required = requiredRegroupings(max, config.difficulty, complex);
+function generateVerticalSubtraction(params: VerticalParameters, complex: boolean, random: RandomSource): Question {
+  const { max, minOperand: min } = params;
+  const floor = addSubFloor(params);
+  const required = complex ? (params.doubleRegrouping ? 2 : 1) : 0;
 
   for (let attempt = 0; attempt < 4000; attempt++) {
     const a = randomInt(Math.max(floor, min + 1), max, random);
@@ -143,17 +151,9 @@ function generateVerticalSubtraction(config: WorksheetConfig, complex: boolean, 
   throw new Error('当前范围无法生成符合难度的减法竖式，请调整年级或难度');
 }
 
-function multiplicationFactorRange(difficulty: Difficulty): [number, number] {
-  if (difficulty === 'entry') return [2, 5];
-  if (difficulty === 'easy') return [2, 6];
-  if (difficulty === 'standard') return [3, 9];
-  if (difficulty === 'advanced') return [5, 9];
-  return [6, 9];
-}
-
-function generateVerticalMultiplication(config: WorksheetConfig, complex: boolean, random: RandomSource): Question {
-  const [factorMin, factorMax] = multiplicationFactorRange(config.difficulty);
-  const complexFloor = Math.max(12, Math.ceil(99 * MAGNITUDE_FLOOR[config.difficulty]));
+function generateVerticalMultiplication(params: VerticalParameters, complex: boolean, random: RandomSource): Question {
+  const { factorMin, factorMax } = params;
+  const complexFloor = Math.max(12, Math.ceil(99 * params.magnitudeFloorFactor));
 
   for (let attempt = 0; attempt < 3000; attempt++) {
     const b = randomInt(factorMin, factorMax, random);
@@ -175,22 +175,14 @@ function generateVerticalMultiplication(config: WorksheetConfig, complex: boolea
   throw new Error('当前难度无法生成符合要求的乘法竖式，请调整难度');
 }
 
-function divisionLimits(difficulty: Difficulty): { maxDividend: number; minQuotient: number; divisorMin: number; divisorMax: number } {
-  if (difficulty === 'entry') return { maxDividend: 200, minQuotient: 10, divisorMin: 2, divisorMax: 5 };
-  if (difficulty === 'easy') return { maxDividend: 400, minQuotient: 12, divisorMin: 2, divisorMax: 6 };
-  if (difficulty === 'standard') return { maxDividend: 600, minQuotient: 15, divisorMin: 3, divisorMax: 9 };
-  if (difficulty === 'advanced') return { maxDividend: 800, minQuotient: 20, divisorMin: 4, divisorMax: 9 };
-  return { maxDividend: 999, minQuotient: 30, divisorMin: 6, divisorMax: 9 };
-}
-
-function generateVerticalDivision(config: WorksheetConfig, withRemainder: boolean, random: RandomSource): Question {
-  const limits = divisionLimits(config.difficulty);
+function generateVerticalDivision(params: VerticalParameters, withRemainder: boolean, random: RandomSource): Question {
+  const { factorMin: divisorMin, factorMax: divisorMax, maxDividend, minQuotient } = params;
   for (let attempt = 0; attempt < 3000; attempt++) {
-    const divisor = randomInt(limits.divisorMin, limits.divisorMax, random);
+    const divisor = randomInt(divisorMin, divisorMax, random);
     const remainder = withRemainder ? randomInt(1, divisor - 1, random) : 0;
-    const quotientMax = Math.floor((limits.maxDividend - remainder) / divisor);
-    if (quotientMax < limits.minQuotient) continue;
-    const quotient = randomInt(limits.minQuotient, quotientMax, random);
+    const quotientMax = Math.floor((maxDividend - remainder) / divisor);
+    if (quotientMax < minQuotient) continue;
+    const quotient = randomInt(minQuotient, quotientMax, random);
     const dividend = divisor * quotient + remainder;
     if (quotient % 10 === 0 || dividend % 10 === 0) continue;
     const answer = remainder ? `${quotient}……${remainder}` : quotient;
@@ -214,10 +206,10 @@ function markQuota(entries: PageEntry[], indices: number[], requested: number, f
   for (const index of shuffle(indices, random).slice(0, requested)) entries[index][field] = true;
 }
 
-function buildPageEntries(config: WorksheetConfig, random: RandomSource): PageEntry[] {
+function buildPageEntries(config: WorksheetConfig, params: VerticalParameters, random: RandomSource): PageEntry[] {
   const entries = pageOperations(config.verticalOperations, config.randomMix, random).map(operation => ({ operation }));
   if (config.practiceMode === 'verticalAddSub') {
-    const requested = COMPLEX_PER_PAGE[config.difficulty];
+    const requested = params.complexPerPage;
     if (config.verticalOperations.length === 1) {
       markQuota(entries, entries.map((_, index) => index), requested, 'complex', random);
     } else {
@@ -230,44 +222,38 @@ function buildPageEntries(config: WorksheetConfig, random: RandomSource): PageEn
   } else {
     const multiplicationIndices = entries.flatMap((entry, index) => entry.operation === 'multiplication' ? [index] : []);
     const divisionIndices = entries.flatMap((entry, index) => entry.operation === 'division' ? [index] : []);
-    markQuota(entries, multiplicationIndices, Math.round(multiplicationIndices.length * COMPLEX_PER_PAGE[config.difficulty] / VERTICAL_PAGE_SIZE), 'complex', random);
-    markQuota(entries, divisionIndices, Math.round(divisionIndices.length * REMAINDER_RATE[config.difficulty]), 'remainder', random);
+    markQuota(entries, multiplicationIndices, Math.round(multiplicationIndices.length * params.complexPerPage / VERTICAL_PAGE_SIZE), 'complex', random);
+    markQuota(entries, divisionIndices, Math.round(divisionIndices.length * params.remainderRate), 'remainder', random);
   }
   return entries;
 }
 
-function generateOne(config: WorksheetConfig, entry: PageEntry, random: RandomSource): Question {
-  if (entry.operation === 'addition') return generateVerticalAddition(config, Boolean(entry.complex), random);
-  if (entry.operation === 'subtraction') return generateVerticalSubtraction(config, Boolean(entry.complex), random);
-  if (entry.operation === 'multiplication') return generateVerticalMultiplication(config, Boolean(entry.complex), random);
-  return generateVerticalDivision(config, Boolean(entry.remainder), random);
+function generateOne(params: VerticalParameters, entry: PageEntry, random: RandomSource): Question {
+  if (entry.operation === 'addition') return generateVerticalAddition(params, Boolean(entry.complex), random);
+  if (entry.operation === 'subtraction') return generateVerticalSubtraction(params, Boolean(entry.complex), random);
+  if (entry.operation === 'multiplication') return generateVerticalMultiplication(params, Boolean(entry.complex), random);
+  return generateVerticalDivision(params, Boolean(entry.remainder), random);
 }
 
 /** Generate exactly one vertical question for registry handlers. */
-export function generateVerticalQuestion(type: Question['type'], config: WorksheetConfig, random: RandomSource = Math.random): Question {
-  const operation: VerticalOperation = type === 'verticalAddition' ? 'addition'
-    : type === 'verticalSubtraction' ? 'subtraction'
-      : type === 'verticalMultiplication' ? 'multiplication' : 'division';
-  const normalized: WorksheetConfig = {
-    ...config,
-    practiceMode: operation === 'addition' || operation === 'subtraction' ? 'verticalAddSub' : 'verticalMulDiv',
-    verticalOperations: [operation], verticalPages: 1, count: VERTICAL_PAGE_SIZE, allowDuplicates: true
-  };
-  const complex = normalized.difficulty === 'challenge' || normalized.difficulty === 'advanced';
-  if (operation === 'addition') return generateVerticalAddition(normalized, complex, random);
-  if (operation === 'subtraction') return generateVerticalSubtraction(normalized, complex, random);
-  if (operation === 'multiplication') return generateVerticalMultiplication(normalized, complex, random);
-  return generateVerticalDivision(normalized, complex, random);
+export function generateVerticalQuestion(type: Question['type'], profile: ProblemProfile, random: RandomSource = Math.random): Question {
+  const params = resolveVerticalParameters(profile);
+  const complex = params.complexTier;
+  if (type === 'verticalAddition') return generateVerticalAddition(params, complex, random);
+  if (type === 'verticalSubtraction') return generateVerticalSubtraction(params, complex, random);
+  if (type === 'verticalMultiplication') return generateVerticalMultiplication(params, complex, random);
+  return generateVerticalDivision(params, complex, random);
 }
 
-export function generateVerticalQuestions(config: WorksheetConfig, random: RandomSource = Math.random): Question[] {
+export function generateVerticalQuestions(config: WorksheetConfig, profile: ProblemProfile, random: RandomSource = Math.random): Question[] {
+  const params = resolveVerticalParameters(profile);
   const questions: Question[] = [];
   const signatures = new Set<string>();
   for (let page = 0; page < config.verticalPages; page++) {
-    for (const entry of buildPageEntries(config, random)) {
+    for (const entry of buildPageEntries(config, params, random)) {
       let question: Question | undefined;
       for (let attempt = 0; attempt < 4000; attempt++) {
-        const candidate = generateOne(config, entry, random);
+        const candidate = generateOne(params, entry, random);
         if (config.allowDuplicates || !signatures.has(candidate.signature)) {
           question = candidate;
           break;

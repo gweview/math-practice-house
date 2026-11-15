@@ -7,7 +7,7 @@ import { paginateByMeasuredFootprints, questionFootprint } from '../domain/works
 import { getQuestionDefinition, getQuestionHandler } from '../domain/questions/registry';
 import { scoreQuestionDifficulty } from '../domain/questions/difficulty-score';
 import { normalizeConfig, validateConfig, validateQuestion } from './validators';
-import type { ProblemProfile, ProblemType, Question, Worksheet, WorksheetConfig } from './types';
+import type { ProblemProfile, ProblemType, Question, VerticalOperation, Worksheet, WorksheetConfig } from './types';
 
 export interface GenerationDirective {
   readonly [key: string]: unknown;
@@ -154,7 +154,14 @@ export function generateWorksheet(input: WorksheetConfig, options: GenerateWorks
   if (!check.valid) throw new Error(check.errors.join('；'));
 
   if (config.practiceMode !== 'standard') {
-    const questions = generateVerticalQuestions(config, attachCreateId(random, () => '')).map(question => ({ ...question, id: context.createId() }));
+    // All four vertical types share difficultyProfiles(1000), so the first
+    // operation's resolved profile stands for the whole vertical worksheet.
+    const verticalType: Record<VerticalOperation, ProblemType> = {
+      addition: 'verticalAddition', subtraction: 'verticalSubtraction',
+      multiplication: 'verticalMultiplication', division: 'verticalDivision'
+    };
+    const profile = getProblemProfile(verticalType[config.verticalOperations[0]], config.difficulty, config.stage, config.rangeMode);
+    const questions = generateVerticalQuestions(config, profile, attachCreateId(random, () => '')).map(question => ({ ...question, id: context.createId() }));
     for (const question of questions) {
       const validation = validateQuestion(question, config);
       if (!validation.valid) throw new Error(validation.errors.join('；'));

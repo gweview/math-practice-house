@@ -42,7 +42,7 @@ export function generateMultiplicationBlank(input: QuestionGenerationInput): Que
 }
 
 function generateVertical(input: QuestionGenerationInput): Question {
-  return generateVerticalQuestion(input.type as Question['type'], input.config, randomWithId(input));
+  return generateVerticalQuestion(input.type as Question['type'], input.profile, randomWithId(input));
 }
 
 export const generateVerticalAddition = (input: QuestionGenerationInput): Question => generateVertical(input);

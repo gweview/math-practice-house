@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Layout, Question, WorksheetConfig } from '../src/core/types';
 import { packInlineRows } from '../src/core/generate';
 import { measuredTrackHeightMm, questionFootprint } from '../src/domain/worksheet/layout-metrics';
-import { computeLongDivisionSteps } from '../src/features/math/MathWorkbook';
+import { computeLongDivisionSteps } from '../src/features/math/long-division';
 import { planMathSheets } from '../src/features/math/layout';
 
 const baseConfig: WorksheetConfig = {

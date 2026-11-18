@@ -19,8 +19,9 @@ import {
 } from '../src/core/generators/sampling';
 import { generateWorksheet } from '../src/core/generate';
 import { generateVerticalQuestion, generateVerticalQuestions, resolveVerticalParameters } from '../src/core/generators/vertical';
+import { scoreQuestionDifficulty } from '../src/domain/questions/difficulty-score';
 import { normalizeStoredWorksheetConfig } from '../src/features/worksheet-builder/config';
-import type { ProblemProfile } from '../src/domain/questions/model';
+import type { ProblemProfile, Question } from '../src/domain/questions/model';
 import type { WorksheetConfig } from '../src/domain/worksheet/config';
 
 const worksheetBase: WorksheetConfig = {
@@ -508,5 +509,93 @@ describe('step 3: saved-config compatibility', () => {
     expect(loaded.verticalSubtractionMode).toBeUndefined();
     const sheet = generateWorksheet({ ...loaded, verticalPages: 1 }, { seed: 'step3-stored-defaults' });
     expect(sheet.questions).toHaveLength(8);
+  });
+});
+
+describe('step 4: vertical difficulty score', () => {
+  const verticalQuestion = (
+    type: 'verticalAddition' | 'verticalSubtraction' | 'verticalMultiplication' | 'verticalDivision',
+    operands: [number, number],
+    answer: number | string,
+    metadata: Record<string, string | number | boolean> = {}
+  ): Question => ({
+    id: 'q-v', type, text: '', answer, operands,
+    operators: [type === 'verticalAddition' ? '+' : type === 'verticalSubtraction' ? '-' : type === 'verticalMultiplication' ? '×' : '÷'],
+    signature: `${type}:${operands.join(',')}`,
+    layout: type === 'verticalDivision' ? 'longDivision' : 'vertical',
+    metadata
+  });
+  const profileMax = { max: 1000 };
+
+  it('ranks more regroupings higher at the same digit count', () => {
+    const none = scoreQuestionDifficulty(verticalQuestion('verticalAddition', [11, 22], 33, { magnitude: 33 }), profileMax);
+    const one = scoreQuestionDifficulty(verticalQuestion('verticalAddition', [27, 15], 42, { magnitude: 42 }), profileMax);
+    const two = scoreQuestionDifficulty(verticalQuestion('verticalAddition', [789, 234], 1023, { magnitude: 1023 }), profileMax);
+    expect(one).toBeGreaterThan(none);
+    expect(two).toBeGreaterThan(one);
+  });
+
+  it('ranks more digits higher at the same regrouping count', () => {
+    const twoDigit = scoreQuestionDifficulty(verticalQuestion('verticalAddition', [11, 22], 33, { magnitude: 33 }), profileMax);
+    const threeDigit = scoreQuestionDifficulty(verticalQuestion('verticalAddition', [111, 222], 333, { magnitude: 333 }), profileMax);
+    expect(threeDigit).toBeGreaterThan(twoDigit);
+  });
+
+  it('ranks across-zero borrowing above plain borrowing at the same count', () => {
+    const plain = scoreQuestionDifficulty(verticalQuestion('verticalSubtraction', [642, 258], 384, { magnitude: 642 }), profileMax);
+    const acrossZero = scoreQuestionDifficulty(verticalQuestion('verticalSubtraction', [500, 168], 332, { magnitude: 500 }), profileMax);
+    expect(acrossZero).toBeGreaterThan(plain);
+  });
+
+  it('ranks partial-product rows above single-factor multiplication', () => {
+    const twoByOne = scoreQuestionDifficulty(verticalQuestion('verticalMultiplication', [99, 9], 891, { magnitude: 891 }), profileMax);
+    const twoByTwo = scoreQuestionDifficulty(verticalQuestion('verticalMultiplication', [34, 26], 884, { magnitude: 884 }), profileMax);
+    expect(twoByTwo).toBeGreaterThan(twoByOne);
+  });
+
+  it('ranks division by remainder, zero quotient, and two-digit divisor', () => {
+    const exact = scoreQuestionDifficulty(verticalQuestion('verticalDivision', [96, 8], 12, { magnitude: 96, quotient: 12, remainder: 0 }), profileMax);
+    const remainderOnly = scoreQuestionDifficulty(verticalQuestion('verticalDivision', [97, 8], '12……1', { magnitude: 97, quotient: 12, remainder: 1 }), profileMax);
+    const zeroQuotientOnly = scoreQuestionDifficulty(verticalQuestion('verticalDivision', [80, 8], 10, { magnitude: 80, quotient: 10, remainder: 0 }), profileMax);
+    const both = scoreQuestionDifficulty(verticalQuestion('verticalDivision', [85, 8], '10……5', { magnitude: 85, quotient: 10, remainder: 5 }), profileMax);
+    expect(remainderOnly).toBeGreaterThan(exact);
+    expect(zeroQuotientOnly).toBeGreaterThan(exact);
+    expect(both).toBeGreaterThan(remainderOnly);
+    expect(both).toBeGreaterThan(zeroQuotientOnly);
+    const oneDigitDivisor = scoreQuestionDifficulty(verticalQuestion('verticalDivision', [204, 6], 34, { magnitude: 204, quotient: 34, remainder: 0 }), profileMax);
+    const twoDigitDivisor = scoreQuestionDifficulty(verticalQuestion('verticalDivision', [204, 12], 17, { magnitude: 204, quotient: 17, remainder: 0 }), profileMax);
+    expect(twoDigitDivisor).toBeGreaterThan(oneDigitDivisor);
+  });
+
+  it('recomputes regrouping from operands instead of trusting metadata', () => {
+    const trusted = scoreQuestionDifficulty(
+      verticalQuestion('verticalAddition', [27, 15], 42, { magnitude: 42, regrouping: true, regroupingCount: 1 }), profileMax);
+    const stale = scoreQuestionDifficulty(
+      verticalQuestion('verticalAddition', [27, 15], 42, { magnitude: 42, regrouping: false, regroupingCount: 0 }), profileMax);
+    expect(stale).toBe(trusted);
+  });
+
+  it('keeps every generated vertical score within [0, 1]', () => {
+    for (const practiceMode of ['verticalAddSub', 'verticalMulDiv', 'verticalAll'] as const) {
+      const sheet = generateWorksheet({
+        ...worksheetBase, practiceMode,
+        verticalOperations: practiceMode === 'verticalAddSub' ? ['addition', 'subtraction'] : practiceMode === 'verticalMulDiv' ? ['multiplication', 'division'] : ['addition', 'subtraction', 'multiplication', 'division'],
+        verticalPages: 2
+      }, { seed: `step4-bounds-${practiceMode}` });
+      for (const question of sheet.questions) {
+        const score = scoreQuestionDifficulty(question, { max: 1000 });
+        expect(score).toBeGreaterThanOrEqual(0);
+        expect(score).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it('sums the renormalized generic weights to exactly 1', () => {
+    const maxed: Question = {
+      id: 'q-max', type: 'addition100', text: '', answer: 9999, operands: [9999],
+      operators: ['+', '-', '+'], signature: 'max', layout: 'inline',
+      metadata: { regrouping: true, reverse: true }
+    };
+    expect(scoreQuestionDifficulty(maxed, { max: 1000 })).toBeCloseTo(1, 10);
   });
 });

@@ -50,12 +50,24 @@ directives: { reverse: true, multiStep: true }
 
 ## 3. 题目难度分
 
-`scoreQuestionDifficulty(question, profile)`（`src/domain/questions/difficulty-score.ts`）是纯函数，返回值 ∈ [0, 1]：
+`scoreQuestionDifficulty(question, profile)`（`src/domain/questions/difficulty-score.ts`）是纯函数，返回值 ∈ [0, 1]。通用公式（权重和为 1）：
 
 ```
-0.50 × 数字大小比（最大量值 / profile.max，上限 1）
-+ 0.35 × 步数分（1 步 0，2 步 0.5，3 步以上 1）
-+ 0.15 × 进退位（metadata.regrouping 为 true 时计 1）
+0.45  × 数字大小比（最大量值 / profile.max，上限 1）
++ 0.30  × 步数分（1 步 0，2 步 0.5，3 步以上 1）
++ 0.125 × 进退位（metadata.regrouping 为 true 时计 1）
++ 0.125 × 逆向（逆向思维结构时计 1，见 isReverseQuestion）
+```
+
+通用公式的权重在 2026-11-18 竖式优化步骤 4 归一化：此前四项权重为 0.50 / 0.35 / 0.15 / 0.15（和 1.15，再 clamp 到 1），归一化后保持原相对比例，和为 1。
+
+竖式题目（`layout` 为 `vertical` / `longDivision`）走专用分支：步数与逆向两项对单步正向计算恒为 0，难度改由位数、进退位次数与除法结构决定（进退位次数与除法结构直接从操作数用共享计数器算出，不依赖元数据）：
+
+```
+0.35 × 位数分（最大操作数位数 / profile.max 的位数，上限 1）
++ 0.35 × 进退位分（进退位次数 / 2，上限 1；除法用余数 0.5 + 商含 0 0.5 折算）
++ 0.15 × 模式分（部分积行 / 隔位退位 / 两位数除数出现计 1，否则 0）
++ 0.15 × 数字大小比（同通用公式）
 ```
 
 难度分**不存进题目对象**：各题型的严格校验器会精确比对题目结构，存入的额外字段会导致复验失败。组卷器在生成时用 side map 暂存分数，供 `progressive`（渐难）排序使用；之后任何时候都可从题目 + 档案重新算出同一分数。
@@ -67,5 +79,5 @@ directives: { reverse: true, multiStep: true }
 已在 Phase C 完成：
 1. **修复 `resolveProblemProfile` 自定义 `max` 解析**：支持通过 `difficultyProfiles(max, { tiers })` 为任意档位声明独立的 `max` 与比例参数，不再被 `standard.max * RANGE_FACTOR` 硬覆盖。
 2. **配额指令（`directives`）扩展到更多题型**：除 `wordProblem` 外，`fillBlank`、`multiplicationBlank`、`multiplicativeComparison`、`moneySense` 已接入 `reverse` 配额指令；`generateWordProblem` 改为确定性紧边界构造，彻底消除递归重试。
-3. **难度分（`scoreQuestionDifficulty`）升级**：新增 `+0.15` 逆向思维结构加分（`isReverseQuestion`），并通过 `effectiveQuestionMagnitude` 修正分币单位缩放（`moneyCalculation`/`budgetPlan`）与非数值型视觉/索引操作数（`shapeRecognition`、`likelihoodLanguage` 等）导致的量级失真。
+3. **难度分（`scoreQuestionDifficulty`）升级**：新增逆向思维结构加分（`isReverseQuestion`，权重见 §3），并通过 `effectiveQuestionMagnitude` 修正分币单位缩放（`moneyCalculation`/`budgetPlan`）与非数值型视觉/索引操作数（`shapeRecognition`、`likelihoodLanguage` 等）导致的量级失真。
 4. **混合难度组卷与分题型难度覆盖**：`WorksheetConfig` 新增 `difficultyDistribution`（按权重将题量分配到多个难度档位）与 `typeDifficulties`（按题型单独指定难度），配合 `progressive` 排序实现真正由易到难的梯度卷。

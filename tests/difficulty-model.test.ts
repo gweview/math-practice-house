@@ -98,7 +98,7 @@ describe('difficulty score', () => {
     const question = makeQuestion({ operands: [500], operators: ['+'] });
     const plain = scoreQuestionDifficulty(question, profile);
     expect(scoreQuestionDifficulty(makeQuestion({ operands: [500], operators: ['+'], metadata: { regrouping: true } }), profile))
-      .toBeCloseTo(plain + .15, 10);
+      .toBeCloseTo(plain + .125, 10);
   });
 
   it('stays within [0, 1]', () => {
@@ -161,7 +161,7 @@ describe('Phase C: custom difficulty profiles, extended directives, and mixed-di
     expect(isReverseQuestion(forwardBlank)).toBe(false);
     expect(isReverseQuestion(reverseBlank)).toBe(true);
     expect(scoreQuestionDifficulty(reverseBlank, profile))
-      .toBeCloseTo(scoreQuestionDifficulty(forwardBlank, profile) + .15, 10);
+      .toBeCloseTo(scoreQuestionDifficulty(forwardBlank, profile) + .125, 10);
 
     // Currency cents are normalized to yuan; discrete indices and SVG rotation angles are ignored
     const money: Question = {

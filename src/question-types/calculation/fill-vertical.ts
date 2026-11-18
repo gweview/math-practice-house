@@ -1,6 +1,11 @@
 import { generateFillBlank as generateFillBlankCore } from '../../core/generators/fill-blank';
 import { generateVerticalQuestion } from '../../core/generators/vertical';
 import { attachCreateId, randomInt } from '../../core/random-utils';
+import {
+  additionRegroupingCount as regroupingAdd,
+  multiplicationRegroupingCount as regroupingMul,
+  subtractionRegroupingCount as regroupingSub
+} from '../../domain/math-core/regrouping';
 import type { QuestionDefinition, QuestionGenerationInput, QuestionValidationResult, QuestionValidator } from '../../domain/questions/contracts';
 import type { Question } from '../../domain/questions/model';
 import type { WorksheetConfig } from '../../domain/worksheet/config';
@@ -45,7 +50,11 @@ export function generateMultiplicationBlank(input: QuestionGenerationInput): Que
 }
 
 function generateVertical(input: QuestionGenerationInput): Question {
-  return generateVerticalQuestion(input.type as Question['type'], input.profile, randomWithId(input));
+  return generateVerticalQuestion(input.type as Question['type'], input.profile, randomWithId(input), {
+    subtraction: input.config.verticalSubtractionMode,
+    multiplication: input.config.verticalMultiplicationMode,
+    division: input.config.verticalDivisionMode
+  });
 }
 
 export const generateVerticalAddition = (input: QuestionGenerationInput): Question => generateVertical(input);
@@ -112,24 +121,6 @@ function validateMultiplicationBlankQuestion(question: Question, config: Workshe
   errors.push(...rangeErrors(question, config, definition));
   if (!config.types.includes(question.type)) errors.push('题型不在配置中');
   return result(true, errors);
-}
-
-function regroupingAdd(a: number, b: number): number {
-  let carry = 0, count = 0;
-  while (a > 0 || b > 0) { const sum = a % 10 + b % 10 + carry; carry = sum >= 10 ? 1 : 0; if (carry) count++; a = Math.floor(a / 10); b = Math.floor(b / 10); }
-  return count;
-}
-
-function regroupingSub(a: number, b: number): number {
-  let borrow = 0, count = 0;
-  while (a > 0 || b > 0) { if (a % 10 - borrow < b % 10) { borrow = 1; count++; } else borrow = 0; a = Math.floor(a / 10); b = Math.floor(b / 10); }
-  return count;
-}
-
-function regroupingMul(a: number, b: number): number {
-  let carry = 0, count = 0;
-  while (a > 0) { const total = a % 10 * b + carry; carry = Math.floor(total / 10); if (carry > 0) count++; a = Math.floor(a / 10); }
-  return count;
 }
 
 function curriculumMaximum(config: WorksheetConfig): number {

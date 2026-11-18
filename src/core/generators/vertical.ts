@@ -1,5 +1,10 @@
-import { id, randomInt, shuffle } from '../random-utils';
+import { id, pick, randomInt, shuffle } from '../random-utils';
 import type { RandomSource } from '../../shared/random/seeded-random';
+import {
+  additionRegroupingCount,
+  multiplicationRegroupingCount,
+  subtractionRegroupingCount
+} from '../../domain/math-core/regrouping';
 import {
   VERTICAL_PAGE_SIZE,
   type ProblemProfile,
@@ -70,44 +75,6 @@ interface PageEntry extends VerticalDirective {
   operation: VerticalOperation;
 }
 
-function regroupingCountForAddition(a: number, b: number): number {
-  let left = a, right = b, carry = 0, count = 0;
-  while (left > 0 || right > 0) {
-    const sum = left % 10 + right % 10 + carry;
-    carry = sum >= 10 ? 1 : 0;
-    if (carry) count++;
-    left = Math.floor(left / 10);
-    right = Math.floor(right / 10);
-  }
-  return count;
-}
-
-function regroupingCountForSubtraction(a: number, b: number): number {
-  let left = a, right = b, borrow = 0, count = 0;
-  while (left > 0 || right > 0) {
-    const topDigit = left % 10 - borrow;
-    const bottomDigit = right % 10;
-    if (topDigit < bottomDigit) {
-      borrow = 1;
-      count++;
-    } else borrow = 0;
-    left = Math.floor(left / 10);
-    right = Math.floor(right / 10);
-  }
-  return count;
-}
-
-function regroupingCountForMultiplication(multiplicand: number, factor: number): number {
-  let carry = 0, count = 0;
-  while (multiplicand > 0) {
-    const product = multiplicand % 10 * factor + carry;
-    carry = Math.floor(product / 10);
-    if (carry > 0) count++;
-    multiplicand = Math.floor(multiplicand / 10);
-  }
-  return count;
-}
-
 function addSubFloor(params: VerticalParameters): number {
   // Small ranges keep the old absolute floors (10, or 12 on the complex tier),
   // capped at max so scaled-down profiles (grade 1 entry: max 6) stay feasible.
@@ -126,7 +93,7 @@ function generateVerticalAddition(params: VerticalParameters, complex: boolean, 
     const b = randomInt(min, Math.max(min, max - min), random);
     const sum = a + b;
     if (sum < floor || sum > max || a % 10 === 0 || b % 10 === 0 || a === b) continue;
-    const regroupingCount = regroupingCountForAddition(a, b);
+    const regroupingCount = additionRegroupingCount(a, b);
     if (complex ? regroupingCount < required : regroupingCount !== 0) continue;
     const low = Math.min(a, b), high = Math.max(a, b);
     return {
@@ -171,7 +138,7 @@ function generateVerticalSubtraction(
       const b = bHundreds * 100 + bTens * 10 + bOnes;
       const difference = a - b;
       if (b < min || difference < minimumDifference || b % 10 === 0) continue;
-      const regroupingCount = regroupingCountForSubtraction(a, b);
+      const regroupingCount = subtractionRegroupingCount(a, b);
       if (regroupingCount < 1) continue;
       return {
         id: id(random), type: 'verticalSubtraction', text: `${a} - ${b} =`, answer: difference,
@@ -187,7 +154,7 @@ function generateVerticalSubtraction(
     const difference = a - b;
     const minimumDifference = max <= 20 ? 2 : max <= 100 ? 10 : 100;
     if (difference < minimumDifference || a % 10 === 0 || b % 10 === 0) continue;
-    const regroupingCount = regroupingCountForSubtraction(a, b);
+    const regroupingCount = subtractionRegroupingCount(a, b);
     if (complex ? regroupingCount < required : regroupingCount !== 0) continue;
     return {
       id: id(random), type: 'verticalSubtraction', text: `${a} - ${b} =`, answer: difference,
@@ -214,7 +181,7 @@ function generateVerticalMultiplication(
       const maxA = Math.min(999, Math.max(120, Math.floor(Math.max(max, 900) / b)));
       const a = randomInt(Math.min(lowerA, maxA - 5), maxA, random);
       if (a < 100 || a % 10 === 0 || a * b > max) continue;
-      const regroupingCount = regroupingCountForMultiplication(a, b);
+      const regroupingCount = multiplicationRegroupingCount(a, b);
       const regrouping = regroupingCount > 0;
       if (complex && !regrouping) continue;
       return {
@@ -231,7 +198,7 @@ function generateVerticalMultiplication(
       const maxB = Math.min(99, Math.max(12, Math.floor(max / a)));
       const b = randomInt(11, maxB, random);
       if (a % 10 === 0 || b % 10 === 0 || a * b > max) continue;
-      const regroupingCount = regroupingCountForMultiplication(a, b);
+      const regroupingCount = multiplicationRegroupingCount(a, b);
       const regrouping = regroupingCount > 0;
       if (complex && !regrouping) continue;
       return {
@@ -243,16 +210,25 @@ function generateVerticalMultiplication(
   }
 
   const complexFloor = Math.max(12, Math.ceil(99 * params.magnitudeFloorFactor));
+  // Carry-free two-digit multiplicands depend only on the factor, so build
+  // each factor's list once per question instead of on every attempt.
+  const simpleCandidatesByFactor = new Map<number, number[]>();
+  const simpleCandidatesFor = (factor: number): number[] => {
+    const cached = simpleCandidatesByFactor.get(factor);
+    if (cached) return cached;
+    const candidates = Array.from({ length: 102 }, (_, index) => index + 10)
+      .filter(value => value % 10 !== 0 && multiplicationRegroupingCount(value, factor) === 0);
+    simpleCandidatesByFactor.set(factor, candidates);
+    return candidates;
+  };
 
   for (let attempt = 0; attempt < 3000; attempt++) {
     const b = randomInt(factorMin, factorMax, random);
-    const simpleCandidates = complex ? [] : Array.from({ length: 102 }, (_, index) => index + 10)
-      .filter(value => value % 10 !== 0 && regroupingCountForMultiplication(value, b) === 0);
     const a = complex
       ? randomInt(complexFloor, 99, random)
-      : simpleCandidates[randomInt(0, simpleCandidates.length - 1, random)];
+      : pick(simpleCandidatesFor(b), random);
     if (!Number.isFinite(a) || a % 10 === 0) continue;
-    const regroupingCount = regroupingCountForMultiplication(a, b);
+    const regroupingCount = multiplicationRegroupingCount(a, b);
     const regrouping = regroupingCount > 0;
     if (regrouping !== complex) continue;
     return {
@@ -352,40 +328,50 @@ function markQuota(entries: PageEntry[], indices: number[], requested: number, f
   for (const index of shuffle(indices, random).slice(0, requested)) entries[index][field] = true;
 }
 
+function indicesOf(entries: PageEntry[], operation: VerticalOperation): number[] {
+  return entries.flatMap((entry, index) => entry.operation === operation ? [index] : []);
+}
+
+/** Remainder share for divisions: the division sub-mode overrides the profile rate. */
+function effectiveRemainderRate(config: WorksheetConfig, params: VerticalParameters): number {
+  return config.verticalDivisionMode === 'exact'
+    ? 0
+    : config.verticalDivisionMode === 'remainder'
+      ? 1
+      : params.remainderRate;
+}
+
+interface PageQuota {
+  indices: number[];
+  requested: number;
+  field: 'complex' | 'remainder';
+}
+
 function buildPageEntries(config: WorksheetConfig, params: VerticalParameters, random: RandomSource): PageEntry[] {
   const entries = pageOperations(config.verticalOperations, config.randomMix, random).map(operation => ({ operation }));
+  const quotas: PageQuota[] = [];
   if (config.practiceMode === 'verticalAddSub') {
     const requested = params.complexPerPage;
     if (config.verticalOperations.length === 1) {
-      markQuota(entries, entries.map((_, index) => index), requested, 'complex', random);
+      quotas.push({ indices: entries.map((_, index) => index), requested, field: 'complex' });
     } else {
       const [firstOperation, secondOperation] = random() < .5 ? config.verticalOperations : [...config.verticalOperations].reverse();
-      const firstIndices = entries.flatMap((entry, index) => entry.operation === firstOperation ? [index] : []);
-      const secondIndices = entries.flatMap((entry, index) => entry.operation === secondOperation ? [index] : []);
-      markQuota(entries, firstIndices, Math.ceil(requested / 2), 'complex', random);
-      markQuota(entries, secondIndices, Math.floor(requested / 2), 'complex', random);
+      quotas.push(
+        { indices: indicesOf(entries, firstOperation), requested: Math.ceil(requested / 2), field: 'complex' },
+        { indices: indicesOf(entries, secondOperation), requested: Math.floor(requested / 2), field: 'complex' }
+      );
     }
-  } else if (config.practiceMode === 'verticalMulDiv') {
-    const multiplicationIndices = entries.flatMap((entry, index) => entry.operation === 'multiplication' ? [index] : []);
-    const divisionIndices = entries.flatMap((entry, index) => entry.operation === 'division' ? [index] : []);
-    markQuota(entries, multiplicationIndices, Math.round(multiplicationIndices.length * params.complexPerPage / VERTICAL_PAGE_SIZE), 'complex', random);
-    const effectiveRemainderRate = config.verticalDivisionMode === 'exact'
-      ? 0
-      : config.verticalDivisionMode === 'remainder'
-        ? 1
-        : params.remainderRate;
-    markQuota(entries, divisionIndices, Math.round(divisionIndices.length * effectiveRemainderRate), 'remainder', random);
   } else {
-    const addSubMulIndices = entries.flatMap((entry, index) => entry.operation !== 'division' ? [index] : []);
-    const divisionIndices = entries.flatMap((entry, index) => entry.operation === 'division' ? [index] : []);
-    markQuota(entries, addSubMulIndices, Math.round(addSubMulIndices.length * params.complexPerPage / VERTICAL_PAGE_SIZE), 'complex', random);
-    const effectiveRemainderRate = config.verticalDivisionMode === 'exact'
-      ? 0
-      : config.verticalDivisionMode === 'remainder'
-        ? 1
-        : params.remainderRate;
-    markQuota(entries, divisionIndices, Math.round(divisionIndices.length * effectiveRemainderRate), 'remainder', random);
+    const complexIndices = config.practiceMode === 'verticalMulDiv'
+      ? indicesOf(entries, 'multiplication')
+      : entries.flatMap((entry, index) => entry.operation !== 'division' ? [index] : []);
+    const divisionIndices = indicesOf(entries, 'division');
+    quotas.push(
+      { indices: complexIndices, requested: Math.round(complexIndices.length * params.complexPerPage / VERTICAL_PAGE_SIZE), field: 'complex' },
+      { indices: divisionIndices, requested: Math.round(divisionIndices.length * effectiveRemainderRate(config, params)), field: 'remainder' }
+    );
   }
+  for (const quota of quotas) markQuota(entries, quota.indices, quota.requested, quota.field, random);
   return entries;
 }
 
@@ -396,14 +382,26 @@ function generateOne(params: VerticalParameters, entry: PageEntry, config: Works
   return generateVerticalDivision(params, Boolean(entry.remainder), random, config.verticalDivisionMode);
 }
 
+/** Sub-mode overrides for single-question generation; each defaults to 'mixed' when omitted. */
+export interface VerticalQuestionModes {
+  subtraction?: VerticalSubtractionMode;
+  multiplication?: VerticalMultiplicationMode;
+  division?: VerticalDivisionMode;
+}
+
 /** Generate exactly one vertical question for registry handlers. */
-export function generateVerticalQuestion(type: Question['type'], profile: ProblemProfile, random: RandomSource = Math.random): Question {
+export function generateVerticalQuestion(
+  type: Question['type'],
+  profile: ProblemProfile,
+  random: RandomSource = Math.random,
+  modes: VerticalQuestionModes = {}
+): Question {
   const params = resolveVerticalParameters(profile);
   const complex = params.complexTier;
   if (type === 'verticalAddition') return generateVerticalAddition(params, complex, random);
-  if (type === 'verticalSubtraction') return generateVerticalSubtraction(params, complex, random);
-  if (type === 'verticalMultiplication') return generateVerticalMultiplication(params, complex, random);
-  return generateVerticalDivision(params, complex, random);
+  if (type === 'verticalSubtraction') return generateVerticalSubtraction(params, complex, random, modes.subtraction);
+  if (type === 'verticalMultiplication') return generateVerticalMultiplication(params, complex, random, modes.multiplication);
+  return generateVerticalDivision(params, complex, random, modes.division);
 }
 
 export function generateVerticalQuestions(config: WorksheetConfig, profile: ProblemProfile, random: RandomSource = Math.random): Question[] {

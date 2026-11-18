@@ -1,10 +1,18 @@
-import { id, pick, randomInt, shuffle } from '../random-utils';
+import { id, randomInt, shuffle } from '../random-utils';
 import type { RandomSource } from '../../shared/random/seeded-random';
 import {
   additionRegroupingCount,
   multiplicationRegroupingCount,
   subtractionRegroupingCount
 } from '../../domain/math-core/regrouping';
+import {
+  sampleAddendPairWithRegrouping,
+  sampleDivision,
+  sampleMultiplicationPair,
+  sampleSubtrahendWithBorrows,
+  type DivisionSample,
+  type RegroupingTarget
+} from './sampling';
 import {
   VERTICAL_PAGE_SIZE,
   type ProblemProfile,
@@ -83,161 +91,162 @@ function addSubFloor(params: VerticalParameters): number {
     : Math.ceil(params.max * params.magnitudeFloorFactor);
 }
 
-function generateVerticalAddition(params: VerticalParameters, complex: boolean, random: RandomSource): Question {
+/** Regrouping target for one vertical slot: complex slots need at least the
+ * profile's required count, simple slots need exactly zero regroupings. */
+function regroupingTargetFor(params: VerticalParameters, complex: boolean): RegroupingTarget {
+  return complex ? { min: params.doubleRegrouping ? 2 : 1 } : { min: 0, max: 0 };
+}
+
+/**
+ * Fallback chain for a regrouping target: the exact target first, then the
+ * same count without the consecutive requirement, then lower counts down to
+ * `floor`. Complex slots never relax below one regrouping; simple slots
+ * never relax at all. At most three attempts; callers throw after the chain
+ * is exhausted, naming the infeasible constraint.
+ */
+function relaxedTargets(target: RegroupingTarget, floor: number): RegroupingTarget[] {
+  const chain: RegroupingTarget[] = [target];
+  if (target.consecutive) chain.push({ ...target, consecutive: false });
+  for (let min = target.min - 1; min >= floor; min--) {
+    chain.push({ min, max: target.max, consecutive: false });
+  }
+  return chain;
+}
+
+function describeTarget(target: RegroupingTarget): string {
+  if (target.max === 0) return '不进退位';
+  const count = target.min >= 2 ? `至少 ${target.min} 次` : '至少 1 次';
+  return `${count}进退位${target.consecutive ? '（连续）' : ''}`;
+}
+
+function buildAdditionQuestion(a: number, b: number, random: RandomSource): Question {
+  const sum = a + b;
+  const regroupingCount = additionRegroupingCount(a, b);
+  const low = Math.min(a, b), high = Math.max(a, b);
+  return {
+    id: id(random), type: 'verticalAddition', text: `${a} + ${b} =`, answer: sum,
+    operands: [a, b], operators: ['+'], signature: `verticalAddition:${low}+${high}`, layout: 'vertical',
+    metadata: { regrouping: regroupingCount > 0, regroupingCount, trivial: false, magnitude: sum }
+  };
+}
+
+function buildSubtractionQuestion(a: number, b: number, random: RandomSource): Question {
+  const difference = a - b;
+  const regroupingCount = subtractionRegroupingCount(a, b);
+  return {
+    id: id(random), type: 'verticalSubtraction', text: `${a} - ${b} =`, answer: difference,
+    operands: [a, b], operators: ['-'], signature: `verticalSubtraction:${a}-${b}`, layout: 'vertical',
+    metadata: { regrouping: regroupingCount > 0, regroupingCount, trivial: false, magnitude: a }
+  };
+}
+
+function buildMultiplicationQuestion(a: number, b: number, random: RandomSource): Question {
+  const regroupingCount = multiplicationRegroupingCount(a, b);
+  return {
+    id: id(random), type: 'verticalMultiplication', text: `${a} × ${b} =`, answer: a * b,
+    operands: [a, b], operators: ['×'], signature: `verticalMultiplication:${a}×${b}`, layout: 'vertical',
+    metadata: { regrouping: regroupingCount > 0, regroupingCount, factor: b, trivial: false, magnitude: a * b }
+  };
+}
+
+function buildDivisionQuestion(sample: DivisionSample, random: RandomSource): Question {
+  const { dividend, divisor, quotient, remainder } = sample;
+  const answer = remainder ? `${quotient}……${remainder}` : quotient;
+  return {
+    id: id(random), type: 'verticalDivision', text: `${dividend} ÷ ${divisor} =`, answer,
+    operands: [dividend, divisor], operators: ['÷'], signature: `verticalDivision:${dividend}÷${divisor}`, layout: 'longDivision',
+    metadata: { quotient, remainder, trivial: false, magnitude: dividend, longDivision: true }
+  };
+}
+
+function generateVerticalAddition(params: VerticalParameters, target: RegroupingTarget, random: RandomSource): Question {
   const { max, minOperand: min } = params;
   const floor = addSubFloor(params);
-  const required = complex ? (params.doubleRegrouping ? 2 : 1) : 0;
-
-  for (let attempt = 0; attempt < 4000; attempt++) {
-    const a = randomInt(min, Math.max(min, max - min), random);
-    const b = randomInt(min, Math.max(min, max - min), random);
-    const sum = a + b;
-    if (sum < floor || sum > max || a % 10 === 0 || b % 10 === 0 || a === b) continue;
-    const regroupingCount = additionRegroupingCount(a, b);
-    if (complex ? regroupingCount < required : regroupingCount !== 0) continue;
-    const low = Math.min(a, b), high = Math.max(a, b);
-    return {
-      id: id(random), type: 'verticalAddition', text: `${a} + ${b} =`, answer: sum,
-      operands: [a, b], operators: ['+'], signature: `verticalAddition:${low}+${high}`, layout: 'vertical',
-      metadata: { regrouping: regroupingCount > 0, regroupingCount, trivial: false, magnitude: sum }
-    };
+  const upper = Math.max(min, max - min);
+  const filter = (a: number, b: number) => a <= upper && b <= upper && a % 10 !== 0 && b % 10 !== 0 && a !== b;
+  const startSum = randomInt(floor, max, random);
+  for (const relaxed of relaxedTargets(target, target.min > 0 ? 1 : 0)) {
+    for (let offset = 0; offset <= 60; offset++) {
+      for (const sum of offset === 0 ? [startSum] : [startSum + offset, startSum - offset]) {
+        if (sum < floor || sum > max) continue;
+        const pair = sampleAddendPairWithRegrouping(sum, relaxed, random, { minOperand: min, filter });
+        if (pair) return buildAdditionQuestion(pair[0], pair[1], random);
+      }
+    }
   }
-  throw new Error('当前范围无法生成符合难度的加法竖式，请调整年级或难度');
+  throw new Error(`当前范围无法生成符合难度的加法竖式（和 ${floor}–${max}，${describeTarget(target)}），请调整年级或难度`);
 }
 
 function generateVerticalSubtraction(
   params: VerticalParameters,
-  complex: boolean,
+  target: RegroupingTarget,
   random: RandomSource,
   mode: VerticalSubtractionMode = 'mixed'
 ): Question {
   const { max, minOperand: min } = params;
-  const floor = addSubFloor(params);
-  const required = complex ? (params.doubleRegrouping ? 2 : 1) : 0;
-
-  if (mode === 'acrossZero') {
-    const cap = Math.max(40, max);
-    const minimumDifference = cap <= 20 ? 2 : cap <= 100 ? 10 : 10;
-    for (let attempt = 0; attempt < 2000; attempt++) {
-      let a: number;
-      if (cap >= 200) {
-        const hundreds = randomInt(2, Math.max(2, Math.floor(cap / 100)), random);
-        const zeroTens = random() < .65;
-        const ones = zeroTens ? randomInt(0, 8, random) : 0;
-        const tens = zeroTens ? 0 : randomInt(1, 8, random);
-        a = Math.min(cap, hundreds * 100 + tens * 10 + ones);
-        if (a % 10 !== 0 && Math.floor(a / 10) % 10 !== 0) a = hundreds * 100 + randomInt(0, 8, random);
-      } else {
-        const tens = randomInt(3, Math.max(3, Math.floor(cap / 10)), random);
-        a = Math.min(cap, tens * 10);
-      }
-      if (a <= min + minimumDifference) continue;
-      const bOnes = randomInt(Math.max(1, a % 10 + 1), 9, random);
-      const bTens = a >= 100 ? randomInt(Math.max(1, Math.floor(a / 10) % 10 + 1), 9, random) : randomInt(1, Math.max(1, Math.floor((a - minimumDifference) / 10)), random);
-      const bHundreds = a >= 200 ? randomInt(0, Math.max(0, Math.floor((a - minimumDifference - bTens * 10 - bOnes) / 100)), random) : 0;
-      const b = bHundreds * 100 + bTens * 10 + bOnes;
-      const difference = a - b;
-      if (b < min || difference < minimumDifference || b % 10 === 0) continue;
-      const regroupingCount = subtractionRegroupingCount(a, b);
-      if (regroupingCount < 1) continue;
-      return {
-        id: id(random), type: 'verticalSubtraction', text: `${a} - ${b} =`, answer: difference,
-        operands: [a, b], operators: ['-'], signature: `verticalSubtraction:${a}-${b}`, layout: 'vertical',
-        metadata: { regrouping: true, regroupingCount, trivial: false, magnitude: a }
-      };
+  const acrossZero = mode === 'acrossZero';
+  const minimumDifference = acrossZero ? 10 : max <= 20 ? 2 : max <= 100 ? 10 : 100;
+  // The acrossZero sub-mode always borrows (its dedicated branch ignored the
+  // complex flag); the mixed branch keeps simple slots borrow-free.
+  const effectiveTarget = acrossZero && target.min < 1 ? { min: 1 } : target;
+  const floor = acrossZero ? min + minimumDifference + 1 : Math.max(addSubFloor(params), min + 1);
+  const minuends: number[] = [];
+  for (let a = floor; a <= max; a++) {
+    if (acrossZero ? (a % 10 === 0 || Math.floor(a / 10) % 10 === 0) : a % 10 !== 0) minuends.push(a);
+  }
+  const ordered = shuffle(minuends, random);
+  for (const relaxed of relaxedTargets(effectiveTarget, acrossZero || effectiveTarget.min > 0 ? 1 : 0)) {
+    for (const a of ordered) {
+      const b = sampleSubtrahendWithBorrows(a, relaxed, random, {
+        minOperand: min,
+        acrossZero,
+        filter: candidate => candidate % 10 !== 0 && a - candidate >= minimumDifference
+      });
+      if (b !== null) return buildSubtractionQuestion(a, b, random);
     }
   }
-
-  for (let attempt = 0; attempt < 4000; attempt++) {
-    const a = randomInt(Math.max(floor, min + 1), max, random);
-    const b = randomInt(min, a - 1, random);
-    const difference = a - b;
-    const minimumDifference = max <= 20 ? 2 : max <= 100 ? 10 : 100;
-    if (difference < minimumDifference || a % 10 === 0 || b % 10 === 0) continue;
-    const regroupingCount = subtractionRegroupingCount(a, b);
-    if (complex ? regroupingCount < required : regroupingCount !== 0) continue;
-    return {
-      id: id(random), type: 'verticalSubtraction', text: `${a} - ${b} =`, answer: difference,
-      operands: [a, b], operators: ['-'], signature: `verticalSubtraction:${a}-${b}`, layout: 'vertical',
-      metadata: { regrouping: regroupingCount > 0, regroupingCount, trivial: false, magnitude: a }
-    };
-  }
-  throw new Error('当前范围无法生成符合难度的减法竖式，请调整年级或难度');
+  throw new Error(`当前范围无法生成符合难度的减法竖式（被减数 ${floor}–${max}，${describeTarget(effectiveTarget)}${acrossZero ? '，隔位退位' : ''}），请调整年级或难度`);
 }
 
 function generateVerticalMultiplication(
   params: VerticalParameters,
-  complex: boolean,
+  target: RegroupingTarget,
   random: RandomSource,
   mode: VerticalMultiplicationMode = 'mixed'
 ): Question {
   const { factorMin, factorMax, max } = params;
+  // The specialized branches only demand regrouping for complex slots and
+  // accept any carry count for simple ones; the mixed branch pins simple
+  // slots to exactly zero carries.
+  const effectiveTarget = mode === 'mixed' ? target : target.max === 0 ? { min: 0 } : { min: 1 };
+  const floor = effectiveTarget.min > 0 ? 1 : 0;
 
   if (mode === 'threeByOne') {
-    const upperA = Math.max(199, Math.min(999, Math.floor(Math.max(max, 600) / factorMin)));
-    const lowerA = Math.min(101, upperA - 20);
-    for (let attempt = 0; attempt < 2500; attempt++) {
-      const b = randomInt(factorMin, factorMax, random);
-      const maxA = Math.min(999, Math.max(120, Math.floor(Math.max(max, 900) / b)));
-      const a = randomInt(Math.min(lowerA, maxA - 5), maxA, random);
-      if (a < 100 || a % 10 === 0 || a * b > max) continue;
-      const regroupingCount = multiplicationRegroupingCount(a, b);
-      const regrouping = regroupingCount > 0;
-      if (complex && !regrouping) continue;
-      return {
-        id: id(random), type: 'verticalMultiplication', text: `${a} × ${b} =`, answer: a * b,
-        operands: [a, b], operators: ['×'], signature: `verticalMultiplication:${a}×${b}`, layout: 'vertical',
-        metadata: { regrouping, regroupingCount, factor: b, trivial: false, magnitude: a * b }
-      };
+    for (const relaxed of relaxedTargets(effectiveTarget, floor)) {
+      const pair = sampleMultiplicationPair(100, 999, factorMin, factorMax, relaxed, random, {
+        filter: (a, b) => a % 10 !== 0 && a * b <= max
+      });
+      if (pair) return buildMultiplicationQuestion(pair[0], pair[1], random);
+    }
+  } else if (mode === 'twoByTwo') {
+    const upperA = Math.min(99, Math.max(24, Math.floor(Math.sqrt(max) * 1.4)));
+    for (const relaxed of relaxedTargets(effectiveTarget, floor)) {
+      const pair = sampleMultiplicationPair(11, upperA, 11, 99, relaxed, random, {
+        filter: (a, b) => a % 10 !== 0 && b % 10 !== 0 && a * b <= max
+      });
+      if (pair) return buildMultiplicationQuestion(pair[0], pair[1], random);
+    }
+  } else {
+    const complexFloor = Math.max(12, Math.ceil(99 * params.magnitudeFloorFactor));
+    const [multiplicandMin, multiplicandMax] = target.max === 0 ? [10, 111] : [complexFloor, 99];
+    for (const relaxed of relaxedTargets(effectiveTarget, floor)) {
+      const pair = sampleMultiplicationPair(multiplicandMin, multiplicandMax, factorMin, factorMax, relaxed, random, {
+        filter: a => a % 10 !== 0
+      });
+      if (pair) return buildMultiplicationQuestion(pair[0], pair[1], random);
     }
   }
-
-  if (mode === 'twoByTwo') {
-    for (let attempt = 0; attempt < 2500; attempt++) {
-      const a = randomInt(11, Math.min(99, Math.max(24, Math.floor(Math.sqrt(max) * 1.4))), random);
-      const maxB = Math.min(99, Math.max(12, Math.floor(max / a)));
-      const b = randomInt(11, maxB, random);
-      if (a % 10 === 0 || b % 10 === 0 || a * b > max) continue;
-      const regroupingCount = multiplicationRegroupingCount(a, b);
-      const regrouping = regroupingCount > 0;
-      if (complex && !regrouping) continue;
-      return {
-        id: id(random), type: 'verticalMultiplication', text: `${a} × ${b} =`, answer: a * b,
-        operands: [a, b], operators: ['×'], signature: `verticalMultiplication:${a}×${b}`, layout: 'vertical',
-        metadata: { regrouping, regroupingCount, factor: b, trivial: false, magnitude: a * b }
-      };
-    }
-  }
-
-  const complexFloor = Math.max(12, Math.ceil(99 * params.magnitudeFloorFactor));
-  // Carry-free two-digit multiplicands depend only on the factor, so build
-  // each factor's list once per question instead of on every attempt.
-  const simpleCandidatesByFactor = new Map<number, number[]>();
-  const simpleCandidatesFor = (factor: number): number[] => {
-    const cached = simpleCandidatesByFactor.get(factor);
-    if (cached) return cached;
-    const candidates = Array.from({ length: 102 }, (_, index) => index + 10)
-      .filter(value => value % 10 !== 0 && multiplicationRegroupingCount(value, factor) === 0);
-    simpleCandidatesByFactor.set(factor, candidates);
-    return candidates;
-  };
-
-  for (let attempt = 0; attempt < 3000; attempt++) {
-    const b = randomInt(factorMin, factorMax, random);
-    const a = complex
-      ? randomInt(complexFloor, 99, random)
-      : pick(simpleCandidatesFor(b), random);
-    if (!Number.isFinite(a) || a % 10 === 0) continue;
-    const regroupingCount = multiplicationRegroupingCount(a, b);
-    const regrouping = regroupingCount > 0;
-    if (regrouping !== complex) continue;
-    return {
-      id: id(random), type: 'verticalMultiplication', text: `${a} × ${b} =`, answer: a * b,
-      operands: [a, b], operators: ['×'], signature: `verticalMultiplication:${a}×${b}`, layout: 'vertical',
-      metadata: { regrouping, regroupingCount, factor: b, trivial: false, magnitude: a * b }
-    };
-  }
-  throw new Error('当前难度无法生成符合要求的乘法竖式，请调整难度');
+  throw new Error(`当前难度无法生成符合要求的乘法竖式（${describeTarget(effectiveTarget)}），请调整难度`);
 }
 
 function generateVerticalDivision(
@@ -250,63 +259,37 @@ function generateVerticalDivision(
   const effectiveRemainder = mode === 'exact' ? false : mode === 'remainder' ? true : withRemainder;
 
   if (mode === 'zeroQuotient') {
-    for (let attempt = 0; attempt < 2500; attempt++) {
-      const divisor = randomInt(divisorMin, divisorMax, random);
-      const remainder = effectiveRemainder ? randomInt(1, divisor - 1, random) : 0;
-      const maxQ = Math.floor((maxDividend - remainder) / divisor);
-      const candidates: number[] = [];
-      for (let q = Math.max(10, minQuotient); q <= maxQ; q++) {
-        if (String(q).includes('0')) candidates.push(q);
-      }
-      if (!candidates.length) continue;
-      const quotient = candidates[randomInt(0, candidates.length - 1, random)];
-      const dividend = divisor * quotient + remainder;
-      const answer = remainder ? `${quotient}……${remainder}` : quotient;
-      return {
-        id: id(random), type: 'verticalDivision', text: `${dividend} ÷ ${divisor} =`, answer,
-        operands: [dividend, divisor], operators: ['÷'], signature: `verticalDivision:${dividend}÷${divisor}`, layout: 'longDivision',
-        metadata: { quotient, remainder, trivial: false, magnitude: dividend, longDivision: true }
-      };
-    }
+    const sample = sampleDivision(divisorMin, divisorMax, Math.max(10, minQuotient), Math.floor(maxDividend / divisorMin), {
+      remainder: effectiveRemainder,
+      zeroQuotient: true,
+      filter: candidate => candidate.dividend <= maxDividend
+    }, random);
+    if (sample) return buildDivisionQuestion(sample, random);
+    throw new Error(`当前难度无法生成符合要求的除法竖式（除数 ${divisorMin}–${divisorMax}，商含 0，${effectiveRemainder ? '有余数' : '整除'}），请调整难度`);
   }
 
   if (mode === 'twoDigitDivisor') {
     const cap = Math.max(200, maxDividend);
-    for (let attempt = 0; attempt < 2500; attempt++) {
-      const divisor = randomInt(11, Math.min(48, Math.max(16, Math.floor(cap / 4))), random);
-      if (divisor % 10 === 0) continue;
-      const remainder = effectiveRemainder ? randomInt(1, divisor - 1, random) : 0;
-      const maxQ = Math.floor((cap - remainder) / divisor);
-      if (maxQ < 2) continue;
-      const minQ = maxQ >= 11 ? Math.min(11, maxQ) : 2;
-      const quotient = randomInt(minQ, maxQ, random);
-      const dividend = divisor * quotient + remainder;
-      if (dividend > maxDividend) continue;
-      const answer = remainder ? `${quotient}……${remainder}` : quotient;
-      return {
-        id: id(random), type: 'verticalDivision', text: `${dividend} ÷ ${divisor} =`, answer,
-        operands: [dividend, divisor], operators: ['÷'], signature: `verticalDivision:${dividend}÷${divisor}`, layout: 'longDivision',
-        metadata: { quotient, remainder, trivial: false, magnitude: dividend, longDivision: true }
-      };
-    }
+    const divisorCeiling = Math.min(48, Math.max(16, Math.floor(cap / 4)));
+    const sample = sampleDivision(11, divisorCeiling, 2, Math.floor(cap / 11), {
+      remainder: effectiveRemainder,
+      filter: candidate => {
+        if (candidate.divisor % 10 === 0 || candidate.dividend > maxDividend) return false;
+        const maxQuotient = Math.floor((cap - candidate.remainder) / candidate.divisor);
+        const minQuotientForDivisor = maxQuotient >= 11 ? Math.min(11, maxQuotient) : 2;
+        return candidate.quotient >= minQuotientForDivisor;
+      }
+    }, random);
+    if (sample) return buildDivisionQuestion(sample, random);
+    throw new Error(`当前难度无法生成符合要求的除法竖式（除数 11–${divisorCeiling}，${effectiveRemainder ? '有余数' : '整除'}），请调整难度`);
   }
 
-  for (let attempt = 0; attempt < 3000; attempt++) {
-    const divisor = randomInt(divisorMin, divisorMax, random);
-    const remainder = effectiveRemainder ? randomInt(1, divisor - 1, random) : 0;
-    const quotientMax = Math.floor((maxDividend - remainder) / divisor);
-    if (quotientMax < minQuotient) continue;
-    const quotient = randomInt(minQuotient, quotientMax, random);
-    const dividend = divisor * quotient + remainder;
-    if (quotient % 10 === 0 || dividend % 10 === 0) continue;
-    const answer = remainder ? `${quotient}……${remainder}` : quotient;
-    return {
-      id: id(random), type: 'verticalDivision', text: `${dividend} ÷ ${divisor} =`, answer,
-      operands: [dividend, divisor], operators: ['÷'], signature: `verticalDivision:${dividend}÷${divisor}`, layout: 'longDivision',
-      metadata: { quotient, remainder, trivial: false, magnitude: dividend, longDivision: true }
-    };
-  }
-  throw new Error('当前难度无法生成符合要求的除法竖式，请调整难度');
+  const sample = sampleDivision(divisorMin, divisorMax, minQuotient, Math.floor(maxDividend / divisorMin), {
+    remainder: effectiveRemainder,
+    filter: candidate => candidate.dividend <= maxDividend && candidate.quotient % 10 !== 0 && candidate.dividend % 10 !== 0
+  }, random);
+  if (sample) return buildDivisionQuestion(sample, random);
+  throw new Error(`当前难度无法生成符合要求的除法竖式（除数 ${divisorMin}–${divisorMax}，商 ≥ ${minQuotient}，${effectiveRemainder ? '有余数' : '整除'}），请调整难度`);
 }
 
 function pageOperations(operations: VerticalOperation[], randomMix: boolean, random: RandomSource): VerticalOperation[] {
@@ -376,9 +359,10 @@ function buildPageEntries(config: WorksheetConfig, params: VerticalParameters, r
 }
 
 function generateOne(params: VerticalParameters, entry: PageEntry, config: WorksheetConfig, random: RandomSource): Question {
-  if (entry.operation === 'addition') return generateVerticalAddition(params, Boolean(entry.complex), random);
-  if (entry.operation === 'subtraction') return generateVerticalSubtraction(params, Boolean(entry.complex), random, config.verticalSubtractionMode);
-  if (entry.operation === 'multiplication') return generateVerticalMultiplication(params, Boolean(entry.complex), random, config.verticalMultiplicationMode);
+  const target = regroupingTargetFor(params, Boolean(entry.complex));
+  if (entry.operation === 'addition') return generateVerticalAddition(params, target, random);
+  if (entry.operation === 'subtraction') return generateVerticalSubtraction(params, target, random, config.verticalSubtractionMode);
+  if (entry.operation === 'multiplication') return generateVerticalMultiplication(params, target, random, config.verticalMultiplicationMode);
   return generateVerticalDivision(params, Boolean(entry.remainder), random, config.verticalDivisionMode);
 }
 
@@ -397,11 +381,11 @@ export function generateVerticalQuestion(
   modes: VerticalQuestionModes = {}
 ): Question {
   const params = resolveVerticalParameters(profile);
-  const complex = params.complexTier;
-  if (type === 'verticalAddition') return generateVerticalAddition(params, complex, random);
-  if (type === 'verticalSubtraction') return generateVerticalSubtraction(params, complex, random, modes.subtraction);
-  if (type === 'verticalMultiplication') return generateVerticalMultiplication(params, complex, random, modes.multiplication);
-  return generateVerticalDivision(params, complex, random, modes.division);
+  const target = regroupingTargetFor(params, params.complexTier);
+  if (type === 'verticalAddition') return generateVerticalAddition(params, target, random);
+  if (type === 'verticalSubtraction') return generateVerticalSubtraction(params, target, random, modes.subtraction);
+  if (type === 'verticalMultiplication') return generateVerticalMultiplication(params, target, random, modes.multiplication);
+  return generateVerticalDivision(params, params.complexTier, random, modes.division);
 }
 
 export function generateVerticalQuestions(config: WorksheetConfig, profile: ProblemProfile, random: RandomSource = Math.random): Question[] {
@@ -411,6 +395,9 @@ export function generateVerticalQuestions(config: WorksheetConfig, profile: Prob
   for (let page = 0; page < config.verticalPages; page++) {
     for (const entry of buildPageEntries(config, params, random)) {
       let question: Question | undefined;
+      // Sampler exhaustion is handled inside the generators (fallback chain,
+      // then a loud error), so this loop only retries on duplicates: a null
+      // sampler result never consumes the dedup budget.
       for (let attempt = 0; attempt < 4000; attempt++) {
         const candidate = generateOne(params, entry, config, random);
         if (config.allowDuplicates || !signatures.has(candidate.signature)) {
@@ -418,7 +405,7 @@ export function generateVerticalQuestions(config: WorksheetConfig, profile: Prob
           break;
         }
       }
-      if (!question) throw new Error('当前竖式范围无法继续生成不重复题目，请减少页数或允许重复');
+      if (!question) throw new Error(`当前竖式范围无法继续生成不重复题目（${entry.operation}题池已耗尽），请减少页数或允许重复`);
       questions.push(question);
       signatures.add(question.signature);
     }

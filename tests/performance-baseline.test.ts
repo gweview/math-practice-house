@@ -30,4 +30,29 @@ describe('core generation performance baseline', () => {
     expect(median).toBeLessThan(500);
     expect(slowest).toBeLessThan(500);
   });
+
+  it('generates 5-page vertical worksheets within a stable 500ms budget', () => {
+    const verticalConfig: WorksheetConfig = {
+      ...config,
+      practiceMode: 'verticalAll',
+      verticalOperations: ['addition', 'subtraction', 'multiplication', 'division'],
+      verticalPages: 5,
+      count: 40,
+      allowDuplicates: false,
+      randomMix: true
+    };
+    generateWorksheet(verticalConfig, { seed: 'performance-vertical-warmup' });
+    const samples = Array.from({ length: 5 }, (_, index) => {
+      const start = performance.now();
+      const worksheet = generateWorksheet(verticalConfig, { seed: `performance-vertical-${index}` });
+      const elapsed = performance.now() - start;
+      expect(worksheet.questions).toHaveLength(40);
+      return elapsed;
+    });
+    const slowest = Math.max(...samples);
+    const median = [...samples].sort((left, right) => left - right)[Math.floor(samples.length / 2)];
+    console.info(`generateWorksheet vertical 5-page samples: ${samples.map(value => value.toFixed(1)).join(', ')}ms; median=${median.toFixed(1)}ms; max=${slowest.toFixed(1)}ms`);
+    expect(median).toBeLessThan(500);
+    expect(slowest).toBeLessThan(500);
+  });
 });

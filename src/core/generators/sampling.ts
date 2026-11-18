@@ -1,5 +1,12 @@
 import { pick } from '../random-utils';
 import type { RandomSource } from '../../shared/random/seeded-random';
+import {
+  additionCarryPositions,
+  hasAcrossZeroPattern,
+  hasConsecutivePositions,
+  multiplicationCarryPositions,
+  subtractionBorrowPositions
+} from '../../domain/math-core/regrouping';
 
 /**
  * Shared constraint sampler.
@@ -98,6 +105,151 @@ export function sampleProductTriple(
     for (let b = minimum; b <= maxFactor; b++) {
       for (let divisor = minimum; divisor <= maxFactor; divisor++) {
         if (a * b * divisor <= max) candidates.push([a, b, divisor]);
+      }
+    }
+  }
+  if (!candidates.length) return null;
+  return pick(candidates, random);
+}
+
+/**
+ * Regrouping target for vertical sampling: how many digit positions must
+ * regroup, and whether two of them must be adjacent. `max` defaults to no
+ * upper bound; `{ min: 0, max: 0 }` pins the count at exactly zero.
+ */
+export interface RegroupingTarget {
+  min: number;
+  max?: number;
+  consecutive?: boolean;
+}
+
+export function matchesRegroupingTarget(
+  count: number,
+  positions: readonly boolean[],
+  target: RegroupingTarget
+): boolean {
+  if (count < target.min) return false;
+  if (target.max !== undefined && count > target.max) return false;
+  if (target.consecutive && !hasConsecutivePositions(positions)) return false;
+  return true;
+}
+
+function regroupingMatch(positions: readonly boolean[], target: RegroupingTarget): boolean {
+  return matchesRegroupingTarget(positions.filter(Boolean).length, positions, target);
+}
+
+/**
+ * Sample a pair (a, b) with a + b === sum, both operands >= minOperand,
+ * whose regrouping count matches `target`. Uniform over all such pairs, or
+ * null when none exists. An optional `filter` applies further format rules
+ * (for example rejecting multiples of ten) inside the enumeration, so a
+ * null result means the combined constraints are infeasible for this sum.
+ */
+export function sampleAddendPairWithRegrouping(
+  sum: number,
+  target: RegroupingTarget,
+  random: RandomSource = Math.random,
+  options: { minOperand?: number; filter?: (a: number, b: number) => boolean } = {}
+): [number, number] | null {
+  const minOperand = options.minOperand ?? 1;
+  const candidates: number[] = [];
+  for (let a = minOperand; a <= sum - minOperand; a++) {
+    const b = sum - a;
+    if (!regroupingMatch(additionCarryPositions(a, b), target)) continue;
+    if (options.filter && !options.filter(a, b)) continue;
+    candidates.push(a);
+  }
+  if (!candidates.length) return null;
+  const a = pick(candidates, random);
+  return [a, sum - a];
+}
+
+/**
+ * Sample a subtrahend b with minOperand <= b <= minuend whose borrow count
+ * against `minuend` matches `target`. Uniform over all such values, or null
+ * when none exists. With `acrossZero`, only subtrahends that borrow across
+ * a zero digit of the minuend qualify.
+ */
+export function sampleSubtrahendWithBorrows(
+  minuend: number,
+  target: RegroupingTarget,
+  random: RandomSource = Math.random,
+  options: { minOperand?: number; acrossZero?: boolean; filter?: (subtrahend: number) => boolean } = {}
+): number | null {
+  const minOperand = options.minOperand ?? 1;
+  const candidates: number[] = [];
+  for (let b = minOperand; b <= minuend; b++) {
+    if (!regroupingMatch(subtractionBorrowPositions(minuend, b), target)) continue;
+    if (options.acrossZero && !hasAcrossZeroPattern(minuend, b)) continue;
+    if (options.filter && !options.filter(b)) continue;
+    candidates.push(b);
+  }
+  if (!candidates.length) return null;
+  return pick(candidates, random);
+}
+
+/**
+ * Sample a pair (multiplicand, factor) inside the given ranges whose carry
+ * count matches `target`. Uniform over all such pairs, or null when none
+ * exists. The ranges encode the digit pattern (for example 10–99 × 2–9 for
+ * two-by-one, 100–999 × 2–9 for three-by-one, 11–99 × 11–99 for
+ * two-by-two); the product bound belongs in `filter`.
+ */
+export function sampleMultiplicationPair(
+  multiplicandMin: number,
+  multiplicandMax: number,
+  factorMin: number,
+  factorMax: number,
+  target: RegroupingTarget,
+  random: RandomSource = Math.random,
+  options: { filter?: (multiplicand: number, factor: number) => boolean } = {}
+): [number, number] | null {
+  const candidates: Array<[number, number]> = [];
+  for (let a = multiplicandMin; a <= multiplicandMax; a++) {
+    for (let b = factorMin; b <= factorMax; b++) {
+      if (!regroupingMatch(multiplicationCarryPositions(a, b), target)) continue;
+      if (options.filter && !options.filter(a, b)) continue;
+      candidates.push([a, b]);
+    }
+  }
+  if (!candidates.length) return null;
+  return pick(candidates, random);
+}
+
+export interface DivisionSample {
+  dividend: number;
+  divisor: number;
+  quotient: number;
+  remainder: number;
+}
+
+/**
+ * Sample a division constructed quotient-first: divisor and quotient inside
+ * the given ranges, remainder 0 for exact division or 1..divisor-1 for
+ * remainder division, dividend = divisor * quotient + remainder. Uniform
+ * over all such triples, or null when none exists. With `zeroQuotient`,
+ * only quotients containing a 0 digit qualify; dividend bounds and format
+ * rules belong in `filter`.
+ */
+export function sampleDivision(
+  divisorMin: number,
+  divisorMax: number,
+  quotientMin: number,
+  quotientMax: number,
+  options: { remainder: boolean; zeroQuotient?: boolean; filter?: (sample: DivisionSample) => boolean },
+  random: RandomSource = Math.random
+): DivisionSample | null {
+  const candidates: DivisionSample[] = [];
+  for (let divisor = divisorMin; divisor <= divisorMax; divisor++) {
+    for (let quotient = quotientMin; quotient <= quotientMax; quotient++) {
+      if (options.zeroQuotient && !String(quotient).includes('0')) continue;
+      const remainders = options.remainder
+        ? Array.from({ length: Math.max(0, divisor - 1) }, (_, index) => index + 1)
+        : [0];
+      for (const remainder of remainders) {
+        const sample: DivisionSample = { dividend: divisor * quotient + remainder, divisor, quotient, remainder };
+        if (options.filter && !options.filter(sample)) continue;
+        candidates.push(sample);
       }
     }
   }

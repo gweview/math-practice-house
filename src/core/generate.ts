@@ -7,6 +7,7 @@ import { paginateByMeasuredFootprints, questionFootprint } from '../domain/works
 import { getQuestionDefinition, getQuestionHandler } from '../domain/questions/registry';
 import { effectiveQuestionMagnitude, scoreQuestionDifficulty } from '../domain/questions/difficulty-score';
 import { normalizeConfig, validateConfig, validateQuestion } from './validators';
+import { VERTICAL_PAGE_SIZE } from './types';
 import type { Difficulty, ProblemProfile, ProblemType, Question, VerticalOperation, Worksheet, WorksheetConfig } from './types';
 
 const DIFFICULTY_LEVELS: readonly Difficulty[] = ['entry', 'easy', 'standard', 'advanced', 'challenge'];
@@ -225,16 +226,55 @@ export function generateWorksheet(input: WorksheetConfig, options: GenerateWorks
       multiplication: 'verticalMultiplication', division: 'verticalDivision'
     };
     const operations: VerticalOperation[] = ['addition', 'subtraction', 'multiplication', 'division'];
-    const profiles = Object.fromEntries(operations.map(operation => [
-      operation,
-      getProblemProfile(verticalType[operation], config.difficulty, config.stage, config.rangeMode)
-    ])) as Record<VerticalOperation, ProblemProfile>;
-    const questions = generateVerticalQuestions(config, profiles, attachCreateId(random, () => '')).map(question => ({ ...question, id: context.createId() }));
+    const resolveTierProfiles = (difficulty: Difficulty): Record<VerticalOperation, ProblemProfile> =>
+      Object.fromEntries(operations.map(operation => [
+        operation, getProblemProfile(verticalType[operation], difficulty, config.stage, config.rangeMode)
+      ])) as Record<VerticalOperation, ProblemProfile>;
+    // Mixed difficulty (the tiered-progression switch) allocates slots across
+    // tiers, exactly like the standard branch; a single slice at the config
+    // difficulty is the default. The ceiling (challenge) profile is resolved
+    // when mixed so progressive scores share one yardstick.
+    const totalSlots = config.verticalPages * VERTICAL_PAGE_SIZE;
+    const slices = allocateDifficultyCounts(totalSlots, config.difficultyDistribution, config.difficulty);
+    const hasMixedDifficulty = slices.length > 1;
+    const profilesByDifficulty: Partial<Record<Difficulty, Record<VerticalOperation, ProblemProfile>>> = {};
+    for (const { difficulty } of slices) profilesByDifficulty[difficulty] = resolveTierProfiles(difficulty);
+    if (hasMixedDifficulty && !profilesByDifficulty.challenge) profilesByDifficulty.challenge = resolveTierProfiles('challenge');
+    const profiles = profilesByDifficulty[config.difficulty] ?? resolveTierProfiles(config.difficulty);
+    const tierProfiles = (difficulty: Difficulty) => profilesByDifficulty[difficulty] ?? profiles;
+    const slotDifficulties = slices.flatMap(({ difficulty, count }) => Array<Difficulty>(count).fill(difficulty));
+    // Progressive ordering keeps slots in tier order (the sort below refines
+    // it); other orderings interleave tiers across pages.
+    const orderedSlots = config.ordering === 'progressive' ? slotDifficulties : shuffle(slotDifficulties, random);
+    const questions = generateVerticalQuestions(config, profiles, attachCreateId(random, () => ''), {
+      slotDifficulties: orderedSlots,
+      profilesByDifficulty
+    }).map(question => ({ ...question, id: context.createId() }));
     for (const question of questions) {
       const validation = validateQuestion(question, config);
       if (!validation.valid) throw new Error(validation.errors.join('；'));
     }
-    return { questions, createdAt: new Date().toISOString(), config, seed: context.seed };
+    let ordered = questions;
+    if (config.ordering === 'progressive') {
+      const operationOf: Record<string, VerticalOperation> = {
+        verticalAddition: 'addition',
+        verticalSubtraction: 'subtraction',
+        verticalMultiplication: 'multiplication',
+        verticalDivision: 'division'
+      };
+      const scores = new Map<string, number>();
+      questions.forEach((question, index) => {
+        const difficulty = orderedSlots[index];
+        const operation = operationOf[question.type] ?? 'addition';
+        const scoreProfile = hasMixedDifficulty ? tierProfiles('challenge')[operation] : tierProfiles(difficulty)[operation];
+        const tierBonus = hasMixedDifficulty ? DIFFICULTY_LEVELS.indexOf(difficulty) * 0.02 : 0;
+        scores.set(question.id, Math.min(1, scoreQuestionDifficulty(question, scoreProfile) + tierBonus));
+      });
+      ordered = [...questions].sort((left, right) =>
+        (scores.get(left.id) ?? 0) - (scores.get(right.id) ?? 0)
+        || effectiveQuestionMagnitude(left) - effectiveQuestionMagnitude(right));
+    }
+    return { questions: ordered, createdAt: new Date().toISOString(), config, seed: context.seed };
   }
 
   const questions: Question[] = [];

@@ -80,4 +80,4 @@ directives: { reverse: true, multiStep: true }
 1. **修复 `resolveProblemProfile` 自定义 `max` 解析**：支持通过 `difficultyProfiles(max, { tiers })` 为任意档位声明独立的 `max` 与比例参数，不再被 `standard.max * RANGE_FACTOR` 硬覆盖。
 2. **配额指令（`directives`）扩展到更多题型**：除 `wordProblem` 外，`fillBlank`、`multiplicationBlank`、`multiplicativeComparison`、`moneySense` 已接入 `reverse` 配额指令；`generateWordProblem` 改为确定性紧边界构造，彻底消除递归重试。
 3. **难度分（`scoreQuestionDifficulty`）升级**：新增逆向思维结构加分（`isReverseQuestion`，权重见 §3），并通过 `effectiveQuestionMagnitude` 修正分币单位缩放（`moneyCalculation`/`budgetPlan`）与非数值型视觉/索引操作数（`shapeRecognition`、`likelihoodLanguage` 等）导致的量级失真。
-4. **混合难度组卷与分题型难度覆盖**：`WorksheetConfig` 新增 `difficultyDistribution`（按权重将题量分配到多个难度档位）与 `typeDifficulties`（按题型单独指定难度），配合 `progressive` 排序实现真正由易到难的梯度卷。
+4. **混合难度组卷与分题型难度覆盖**：`WorksheetConfig` 新增 `difficultyDistribution`（按权重将题量分配到多个难度档位）与 `typeDifficulties`（按题型单独指定难度），配合 `progressive` 排序实现真正由易到难的梯度卷。竖式模式同样支持 `difficultyDistribution`（2026-11-18 竖式优化步骤 5）：每页 8 个 slot 按权重分配档位，各档位按各自的运算档案解析竖式参数；`progressive` 时以挑战档档案为统一标尺计竖式难度分并加 0.02/档位 bonus 排序。`typeDifficulties` 仍只对常规题型生效，竖式题型不接。

@@ -18,7 +18,8 @@ import {
   type RegroupingTarget
 } from '../src/core/generators/sampling';
 import { generateWorksheet } from '../src/core/generate';
-import { generateVerticalQuestion, generateVerticalQuestions, resolveVerticalParameters } from '../src/core/generators/vertical';
+import { getProblemProfile } from '../src/core/difficulty-config';
+import { describeVerticalParameters, generateVerticalQuestion, generateVerticalQuestions, resolveVerticalParameters } from '../src/core/generators/vertical';
 import { scoreQuestionDifficulty } from '../src/domain/questions/difficulty-score';
 import { normalizeStoredWorksheetConfig } from '../src/features/worksheet-builder/config';
 import type { ProblemProfile, Question } from '../src/domain/questions/model';
@@ -597,5 +598,81 @@ describe('step 4: vertical difficulty score', () => {
       metadata: { regrouping: true, reverse: true }
     };
     expect(scoreQuestionDifficulty(maxed, { max: 1000 })).toBeCloseTo(1, 10);
+  });
+});
+
+describe('step 5: mixed difficulty in vertical worksheets', () => {
+  // Entry tier (max 300) and challenge tier (floor 775) separate cleanly on
+  // the largest operand: entry questions never exceed 300, challenge
+  // questions always have a max operand above 300 (sum/minuend >= 775).
+  it('allocates exact per-tier slot counts across the page', () => {
+    const sheet = generateWorksheet({
+      ...worksheetBase, difficultyDistribution: { entry: 1, challenge: 1 }
+    }, createGenerationContext(515));
+    expect(sheet.questions).toHaveLength(8);
+    const entryCount = sheet.questions.filter(q => Math.max(...q.operands) <= 300).length;
+    expect(entryCount).toBe(4);
+    expect(sheet.questions.filter(q => Math.max(...q.operands) > 300)).toHaveLength(4);
+  });
+
+  it('sorts progressively by vertical score with a single tier', () => {
+    const sheet = generateWorksheet({
+      ...worksheetBase, verticalPages: 2, ordering: 'progressive'
+    }, createGenerationContext(516));
+    const profile = getProblemProfile('verticalAddition', 'standard', 'grade3', 'curriculum');
+    const scores = sheet.questions.map(q => scoreQuestionDifficulty(q, profile));
+    expect(scores).toEqual([...scores].sort((a, b) => a - b));
+  });
+
+  it('sorts mixed tiers easy-first under progressive ordering', () => {
+    const sheet = generateWorksheet({
+      ...worksheetBase,
+      difficultyDistribution: { entry: 1, challenge: 1 },
+      ordering: 'progressive'
+    }, createGenerationContext(517));
+    const maxima = sheet.questions.map(q => Math.max(...q.operands));
+    expect(maxima.slice(0, 4).every(max => max <= 300)).toBe(true);
+    expect(maxima.slice(4).every(max => max > 300)).toBe(true);
+  });
+
+  it('keeps mixed tiers interleaved under non-progressive ordering', () => {
+    const sheet = generateWorksheet({
+      ...worksheetBase, difficultyDistribution: { entry: 1, challenge: 1 }
+    }, createGenerationContext(518));
+    const maxima = sheet.questions.map(q => Math.max(...q.operands) <= 300);
+    // Not all entry slots first: the tier assignment is shuffled.
+    expect(maxima).not.toEqual([true, true, true, true, false, false, false, false]);
+  });
+});
+
+describe('step 5: vertical difficulty hints', () => {
+  it('describes the digit pattern and regrouping character per operation', () => {
+    const challenge = profile({ max: 1000, carryRate: .95, doubleRegrouping: true });
+    expect(describeVerticalParameters('addition', resolveVerticalParameters(challenge, 'addition', {})))
+      .toBe('加法：3+3，连续进位');
+    const entry = profile({ max: 300, carryRate: 0 });
+    expect(describeVerticalParameters('addition', resolveVerticalParameters(entry, 'addition', {})))
+      .toBe('加法：2+2/3+3，不进位');
+    const standard = profile({ max: 1000, carryRate: .5 });
+    expect(describeVerticalParameters('subtraction', resolveVerticalParameters(standard, 'subtraction', {})))
+      .toBe('减法：3-3，部分退位');
+  });
+
+  it('describes division remainder policy and zero quotients', () => {
+    const mixed = profile({ max: 1000, remainderRate: .5 });
+    expect(describeVerticalParameters('division', resolveVerticalParameters(mixed, 'division', {})))
+      .toBe('除法：3÷1，约半数有余数');
+    expect(describeVerticalParameters('division', resolveVerticalParameters(mixed, 'division', { division: 'exact' })))
+      .toBe('除法：3÷1，全部整除');
+    expect(describeVerticalParameters('division', resolveVerticalParameters(mixed, 'division', { division: 'zeroQuotient' })))
+      .toBe('除法：3÷1，约半数有余数，商含 0');
+  });
+
+  it('describes across-zero subtraction and multiplication patterns', () => {
+    const standard = profile({ max: 1000, carryRate: .5 });
+    expect(describeVerticalParameters('subtraction', resolveVerticalParameters(standard, 'subtraction', { subtraction: 'acrossZero' })))
+      .toBe('减法：3-3，部分退位，隔位退位');
+    expect(describeVerticalParameters('multiplication', resolveVerticalParameters(standard, 'multiplication', { multiplication: 'twoByTwo' })))
+      .toBe('乘法：2×2，部分进位');
   });
 });

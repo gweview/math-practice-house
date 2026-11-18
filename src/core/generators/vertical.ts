@@ -15,6 +15,7 @@ import {
 } from './sampling';
 import {
   VERTICAL_PAGE_SIZE,
+  type Difficulty,
   type ProblemProfile,
   type Question,
   type VerticalDivisionMode,
@@ -126,6 +127,8 @@ interface VerticalDirective {
 
 interface PageEntry extends VerticalDirective {
   operation: VerticalOperation;
+  /** Difficulty tier this slot generates at (mixed-difficulty worksheets). */
+  difficulty: Difficulty;
 }
 
 function addSubFloor(params: VerticalParameters): number {
@@ -391,38 +394,39 @@ interface PageQuota {
   field: 'complex' | 'remainder';
 }
 
-type VerticalParamsFor = (operation: VerticalOperation) => VerticalParameters;
+type VerticalParamsFor = (operation: VerticalOperation, difficulty: Difficulty) => VerticalParameters;
 
 function buildPageEntries(
   config: WorksheetConfig,
   paramsFor: VerticalParamsFor,
-  random: RandomSource
+  random: RandomSource,
+  difficulties: readonly Difficulty[]
 ): PageEntry[] {
-  const entries = pageOperations(config.verticalOperations, config.randomMix, random).map(operation => ({ operation }));
+  const entries = pageOperations(config.verticalOperations, config.randomMix, random)
+    .map((operation, index) => ({ operation, difficulty: difficulties[index] ?? config.difficulty }));
   const quotas: PageQuota[] = [];
   // Complex quotas are per operation: each operation's group draws from its
-  // own resolved complex rate, and the page total follows largest remainder.
+  // own resolved complex rate at each slot's tier, and the page total
+  // follows largest remainder.
   const complexOperations = config.verticalOperations.filter(operation => operation !== 'division');
   const complexGroups = complexOperations.map(operation => indicesOf(entries, operation));
-  const complexQuotas = distributeQuota(complexGroups.map((indices, index) =>
-    indices.length * paramsFor(complexOperations[index]).complexPerPage / VERTICAL_PAGE_SIZE));
+  const complexQuotas = distributeQuota(complexGroups.map((indices, groupIndex) =>
+    indices.reduce((sum, index) => sum + paramsFor(complexOperations[groupIndex], entries[index].difficulty).complexPerPage, 0) / VERTICAL_PAGE_SIZE));
   complexGroups.forEach((indices, index) => {
     quotas.push({ indices, requested: complexQuotas[index], field: 'complex' });
   });
   const divisionIndices = indicesOf(entries, 'division');
   if (divisionIndices.length) {
-    quotas.push({
-      indices: divisionIndices,
-      requested: Math.round(divisionIndices.length * effectiveRemainderRate(paramsFor('division'))),
-      field: 'remainder'
-    });
+    const remainderTotal = divisionIndices.reduce(
+      (sum, index) => sum + effectiveRemainderRate(paramsFor('division', entries[index].difficulty)), 0);
+    quotas.push({ indices: divisionIndices, requested: Math.round(remainderTotal), field: 'remainder' });
   }
   for (const quota of quotas) markQuota(entries, quota.indices, quota.requested, quota.field, random);
   return entries;
 }
 
 function generateOne(paramsFor: VerticalParamsFor, entry: PageEntry, config: WorksheetConfig, random: RandomSource): Question {
-  const params = paramsFor(entry.operation);
+  const params = paramsFor(entry.operation, entry.difficulty);
   const target = regroupingTargetFor(params, Boolean(entry.complex));
   if (entry.operation === 'addition') return generateVerticalAddition(params, target, random);
   if (entry.operation === 'subtraction') return generateVerticalSubtraction(params, target, random, config.verticalSubtractionMode);
@@ -466,25 +470,46 @@ function isPerOperationProfiles(profiles: VerticalProfiles): profiles is Record<
   return !('max' in profiles);
 }
 
-export function generateVerticalQuestions(config: WorksheetConfig, profiles: VerticalProfiles, random: RandomSource = Math.random): Question[] {
+export interface VerticalGenerationOptions {
+  /** Difficulty tier per slot, in generation order. A list whose length does
+   * not match the worksheet's slot count is ignored (uniform config
+   * difficulty is used instead). */
+  slotDifficulties?: readonly Difficulty[];
+  /** Profiles per difficulty tier; tiers without an entry fall back to `profiles`. */
+  profilesByDifficulty?: Partial<Record<Difficulty, VerticalProfiles>>;
+}
+
+export function generateVerticalQuestions(
+  config: WorksheetConfig,
+  profiles: VerticalProfiles,
+  random: RandomSource = Math.random,
+  options: VerticalGenerationOptions = {}
+): Question[] {
   const modes: VerticalQuestionModes = {
     subtraction: config.verticalSubtractionMode,
     multiplication: config.verticalMultiplicationMode,
     division: config.verticalDivisionMode
   };
-  const paramsCache = new Map<VerticalOperation, VerticalParameters>();
-  const paramsFor: VerticalParamsFor = operation => {
-    const cached = paramsCache.get(operation);
+  const paramsCache = new Map<string, VerticalParameters>();
+  const paramsFor: VerticalParamsFor = (operation, difficulty) => {
+    const key = `${operation}:${difficulty}`;
+    const cached = paramsCache.get(key);
     if (cached) return cached;
-    const profile = isPerOperationProfiles(profiles) ? profiles[operation] : profiles;
+    const tierProfiles = options.profilesByDifficulty?.[difficulty] ?? profiles;
+    const profile = isPerOperationProfiles(tierProfiles) ? tierProfiles[operation] : tierProfiles;
     const resolved = resolveVerticalParameters(profile, operation, modes);
-    paramsCache.set(operation, resolved);
+    paramsCache.set(key, resolved);
     return resolved;
   };
+  const totalSlots = config.verticalPages * VERTICAL_PAGE_SIZE;
+  const slotDifficulties = options.slotDifficulties?.length === totalSlots
+    ? options.slotDifficulties
+    : Array<Difficulty>(totalSlots).fill(config.difficulty);
   const questions: Question[] = [];
   const signatures = new Set<string>();
   for (let page = 0; page < config.verticalPages; page++) {
-    for (const entry of buildPageEntries(config, paramsFor, random)) {
+    const pageDifficulties = slotDifficulties.slice(page * VERTICAL_PAGE_SIZE, (page + 1) * VERTICAL_PAGE_SIZE);
+    for (const entry of buildPageEntries(config, paramsFor, random, pageDifficulties)) {
       let question: Question | undefined;
       // Sampler exhaustion is handled inside the generators (fallback chain,
       // then a loud error), so this loop only retries on duplicates: a null
@@ -502,4 +527,34 @@ export function generateVerticalQuestions(config: WorksheetConfig, profiles: Ver
     }
   }
   return questions;
+}
+
+const VERTICAL_OPERATION_LABELS: Record<VerticalOperation, string> = {
+  addition: '加法', subtraction: '减法', multiplication: '乘法', division: '除法'
+};
+
+/**
+ * One-line description of what an operation's resolved parameters actually
+ * produce at this tier, for the builder's difficulty hint (for example
+ * '加法：3+3，连续进位').
+ */
+export function describeVerticalParameters(operation: VerticalOperation, params: VerticalParameters): string {
+  const label = VERTICAL_OPERATION_LABELS[operation];
+  if (operation === 'division') {
+    const remainderText = params.remainderPolicy === 'exact' ? '全部整除'
+      : params.remainderPolicy === 'remainder' ? '全部有余数'
+      : params.remainderRate <= 0 ? '全部整除'
+      : params.remainderRate >= .9 ? '大多有余数'
+      : params.remainderRate >= .4 ? '约半数有余数'
+      : '少量有余数';
+    const zeroText = params.zeroQuotientRate > 0 ? '，商含 0' : '';
+    return `${label}：${params.digitPattern}，${remainderText}${zeroText}`;
+  }
+  const regroupingWord = operation === 'subtraction' ? '退位' : '进位';
+  const regroupingText = params.complexPerPage <= 0 ? `不${regroupingWord}`
+    : params.regroupingTarget.consecutive ? `连续${regroupingWord}`
+    : params.doubleRegrouping ? `多次${regroupingWord}`
+    : `部分${regroupingWord}`;
+  const extra = operation === 'subtraction' && params.acrossZeroRate > 0 ? '，隔位退位' : '';
+  return `${label}：${params.digitPattern}，${regroupingText}${extra}`;
 }

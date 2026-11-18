@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { DIFFICULTY_DESCRIPTIONS, DIFFICULTY_LABELS } from '../../core/difficulty-config';
+import { DIFFICULTY_DESCRIPTIONS, DIFFICULTY_LABELS, getProblemProfile } from '../../core/difficulty-config';
 import { generateWorksheet } from '../../core/generate';
+import { describeVerticalParameters, resolveVerticalParameters } from '../../core/generators/vertical';
 import { isTypeAllowedForStage, STAGE_LABELS, STAGE_RECOMMENDED_TYPES } from '../../core/grade-config';
 import {
   MAX_VERTICAL_PAGES,
@@ -40,8 +41,9 @@ const PRACTICE_LABELS: Record<PracticeMode, string> = {
   verticalAll: '四则综合竖式'
 };
 const VERTICAL_OPERATION_LABELS: Record<VerticalOperation, string> = { addition: '加法', subtraction: '减法', multiplication: '乘法', division: '除法' };
-const VERTICAL_DIFFICULTY_HINTS: Record<WorksheetConfig['difficulty'], string> = {
-  entry: '较小数字，保留基础列位步骤', easy: '提高数字范围，加入少量进退位或余数', standard: '数字范围与进退位、余数比例均衡', advanced: '高位数字更多，多次进退位与有余数除法增加', challenge: '高位数字为主，强化连续进退位和复杂竖式'
+const VERTICAL_TYPE_FOR_OPERATION: Record<VerticalOperation, ProblemType> = {
+  addition: 'verticalAddition', subtraction: 'verticalSubtraction',
+  multiplication: 'verticalMultiplication', division: 'verticalDivision'
 };
 const TIERED_DISTRIBUTION: NonNullable<WorksheetConfig['difficultyDistribution']> = {
   easy: 3,
@@ -124,9 +126,17 @@ export default function MathWorksheetBuilder({ active, onPrint }: Props) {
   const answerPageCount = sheets.filter(sheet => sheet.kind === 'answers').length;
   const estimatedCount = config.practiceMode === 'standard' && config.generationMode === 'pages' ? estimatePageTargetCount(config) : config.count;
   const isTieredDifficulty = Boolean(config.difficultyDistribution && Object.values(config.difficultyDistribution).some(weight => Number(weight) > 0));
+  // Vertical hint: generated from the resolved parameters at this tier, so
+  // it always describes what will actually be generated (digit pattern +
+  // regrouping/remainder character), per selected operation.
+  const verticalDifficultyHint = config.verticalOperations.map(operation => describeVerticalParameters(operation, resolveVerticalParameters(
+    getProblemProfile(VERTICAL_TYPE_FOR_OPERATION[operation], config.difficulty, config.stage, config.rangeMode),
+    operation,
+    { subtraction: config.verticalSubtractionMode, multiplication: config.verticalMultiplicationMode, division: config.verticalDivisionMode }
+  ))).join('；');
   const difficultyHint = isTieredDifficulty
     ? '按 3:4:2:1 自动配比简单、标准、提高与挑战题，并按先易后难排布'
-    : config.practiceMode === 'standard' ? DIFFICULTY_DESCRIPTIONS[config.difficulty] : VERTICAL_DIFFICULTY_HINTS[config.difficulty];
+    : config.practiceMode === 'standard' ? DIFFICULTY_DESCRIPTIONS[config.difficulty] : verticalDifficultyHint;
   const canMulDiv = config.rangeMode === 'free' || ['grade3', 'grade4', 'grade5', 'grade6'].includes(config.stage);
   const canTwoDigitDivisor = config.rangeMode === 'free' || ['grade4', 'grade5', 'grade6'].includes(config.stage);
 
@@ -349,10 +359,10 @@ export default function MathWorksheetBuilder({ active, onPrint }: Props) {
         </section>}
 
         <section className="quick-step"><header><b>3</b><div><h3>难度与练习量</h3><p>{difficultyHint}</p></div></header>
-          {config.practiceMode === 'standard' && <div className="segmented-control difficulty-mode-switch" aria-label="难度组合方式">
+          <div className="segmented-control difficulty-mode-switch" aria-label="难度组合方式">
             <button type="button" className={!isTieredDifficulty ? 'selected' : ''} aria-pressed={!isTieredDifficulty} onClick={() => toggleTieredDifficulty(false)}>单一难度</button>
             <button type="button" className={isTieredDifficulty ? 'selected' : ''} aria-pressed={isTieredDifficulty} onClick={() => toggleTieredDifficulty(true)}>🎯 分层递进 (基础+提高+挑战)</button>
-          </div>}
+          </div>
           {!isTieredDifficulty && <div className="choice-row difficulty-row">{Object.entries(DIFFICULTY_LABELS).map(([key, label]) => <ChoiceButton key={key} value={key as WorksheetConfig['difficulty']} current={config.difficulty} onChange={value => update('difficulty', value)}>{label}</ChoiceButton>)}</div>}
           {config.practiceMode === 'standard' ? <>
             <div className="segmented-control amount-mode" aria-label="练习量方式"><ChoiceButton value="count" current={config.generationMode} onChange={value => update('generationMode', value)}>按题量</ChoiceButton><ChoiceButton value="pages" current={config.generationMode} onChange={value => update('generationMode', value)}>按纸张目标</ChoiceButton></div>

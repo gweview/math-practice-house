@@ -26,15 +26,15 @@ function profile(overrides: Partial<ProblemProfile> = {}): ProblemProfile {
 describe('vertical unification', () => {
   it('resolves vertical parameters from the registry profile per tier', () => {
     const expected: Record<Difficulty, ReturnType<typeof resolveVerticalParameters>> = {
-      entry: { max: 300, minOperand: 30, magnitudeFloorFactor: .425, complexPerPage: 0, remainderRate: 0, factorMin: 2, factorMax: 5, maxDividend: 300, minQuotient: 15, doubleRegrouping: false, complexTier: false },
-      easy: { max: 550, minOperand: 55, magnitudeFloorFactor: .5, complexPerPage: 2, remainderRate: .2, factorMin: 2, factorMax: 6, maxDividend: 550, minQuotient: 20, doubleRegrouping: false, complexTier: false },
-      standard: { max: 1000, minOperand: 100, magnitudeFloorFactor: .6, complexPerPage: 4, remainderRate: .5, factorMin: 5, factorMax: 9, maxDividend: 1000, minQuotient: 20, doubleRegrouping: false, complexTier: false },
-      advanced: { max: 1000, minOperand: 100, magnitudeFloorFactor: .7, complexPerPage: 6, remainderRate: .75, factorMin: 5, factorMax: 9, maxDividend: 1000, minQuotient: 20, doubleRegrouping: true, complexTier: true },
-      challenge: { max: 1000, minOperand: 100, magnitudeFloorFactor: .775, complexPerPage: 7, remainderRate: .9, factorMin: 5, factorMax: 9, maxDividend: 1000, minQuotient: 20, doubleRegrouping: true, complexTier: true }
+      entry: { max: 300, minOperand: 30, magnitudeFloorFactor: .425, complexPerPage: 0, remainderRate: 0, factorMin: 2, factorMax: 5, maxDividend: 300, minQuotient: 15, doubleRegrouping: false, complexTier: false, digitPattern: '2+2/3+3', regroupingTarget: { min: 1, consecutive: false }, remainderPolicy: 'mixed', zeroQuotientRate: 0, acrossZeroRate: 0 },
+      easy: { max: 550, minOperand: 55, magnitudeFloorFactor: .5, complexPerPage: 2, remainderRate: .2, factorMin: 2, factorMax: 6, maxDividend: 550, minQuotient: 20, doubleRegrouping: false, complexTier: false, digitPattern: '2+2/3+3', regroupingTarget: { min: 1, consecutive: false }, remainderPolicy: 'mixed', zeroQuotientRate: 0, acrossZeroRate: 0 },
+      standard: { max: 1000, minOperand: 100, magnitudeFloorFactor: .6, complexPerPage: 4, remainderRate: .5, factorMin: 5, factorMax: 9, maxDividend: 1000, minQuotient: 20, doubleRegrouping: false, complexTier: false, digitPattern: '3+3', regroupingTarget: { min: 1, consecutive: false }, remainderPolicy: 'mixed', zeroQuotientRate: 0, acrossZeroRate: 0 },
+      advanced: { max: 1000, minOperand: 100, magnitudeFloorFactor: .7, complexPerPage: 6, remainderRate: .75, factorMin: 5, factorMax: 9, maxDividend: 1000, minQuotient: 20, doubleRegrouping: true, complexTier: true, digitPattern: '3+3', regroupingTarget: { min: 2, consecutive: false }, remainderPolicy: 'mixed', zeroQuotientRate: 0, acrossZeroRate: 0 },
+      challenge: { max: 1000, minOperand: 100, magnitudeFloorFactor: .775, complexPerPage: 7, remainderRate: .9, factorMin: 5, factorMax: 9, maxDividend: 1000, minQuotient: 20, doubleRegrouping: true, complexTier: true, digitPattern: '3+3', regroupingTarget: { min: 2, consecutive: true }, remainderPolicy: 'mixed', zeroQuotientRate: 0, acrossZeroRate: 0 }
     };
     for (const difficulty of Object.keys(expected) as Difficulty[]) {
       const resolved = getProblemProfile('verticalAddition', difficulty, 'grade3', 'curriculum');
-      const { magnitudeFloorFactor, ...rest } = resolveVerticalParameters(resolved);
+      const { magnitudeFloorFactor, ...rest } = resolveVerticalParameters(resolved, 'addition');
       const { magnitudeFloorFactor: expectedFactor, ...expectedRest } = expected[difficulty];
       expect(rest).toEqual(expectedRest);
       expect(magnitudeFloorFactor).toBeCloseTo(expectedFactor, 10);

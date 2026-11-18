@@ -30,7 +30,12 @@ import {
  * reads, so curriculum caps and difficulty tiers stay in one place.
  *
  * reverseRate/multiStepRate do not apply here: a vertical question is a
- * single forward computation, so there is nothing to reverse or chain. */
+ * single forward computation, so there is nothing to reverse or chain.
+ *
+ * The last five fields are the per-operation reading of the profile: the
+ * same profile resolves differently for each operation (digit pattern,
+ * regrouping target, remainder policy), and the three sub-modes map onto
+ * them instead of living only in the worksheet config. */
 export interface VerticalParameters {
   /** Operand/result ceiling: the resolved profile max. */
   max: number;
@@ -53,12 +58,47 @@ export interface VerticalParameters {
   doubleRegrouping: boolean;
   /** Whether single-question generation defaults to complex questions. */
   complexTier: boolean;
+  /** Operand digit pattern, for example '2+2', '3×1', '2×2', '3÷1'. */
+  digitPattern: string;
+  /** Regrouping target for complex slots: minimum count, and whether two
+   * regroupings must be adjacent (challenge tier). */
+  regroupingTarget: RegroupingTarget;
+  /** Remainder policy for division: the division sub-mode overrides 'mixed'. */
+  remainderPolicy: 'exact' | 'mixed' | 'remainder';
+  /** Share of divisions whose quotient contains a 0; only the zeroQuotient
+   * sub-mode produces them (mixed-mode validators reject zero quotients). */
+  zeroQuotientRate: number;
+  /** Share of subtractions borrowing across a zero; only the acrossZero
+   * sub-mode produces them (mixed-mode validators reject zero units). */
+  acrossZeroRate: number;
 }
 
-export function resolveVerticalParameters(profile: ProblemProfile): VerticalParameters {
+/** Digit pattern for one operation at the given ceiling and sub-modes. */
+function digitPatternFor(operation: VerticalOperation, max: number, modes: VerticalQuestionModes): string {
+  if (operation === 'multiplication') {
+    if (modes.multiplication === 'threeByOne') return '3×1';
+    if (modes.multiplication === 'twoByTwo') return '2×2';
+    return '2×1';
+  }
+  if (operation === 'division') {
+    return modes.division === 'twoDigitDivisor' ? '3÷2' : '3÷1';
+  }
+  const symbol = operation === 'addition' ? '+' : '-';
+  if (max <= 20) return '2位数以内';
+  if (max <= 100) return `2${symbol}2`;
+  if (max < 1000) return `2${symbol}2/3${symbol}3`;
+  return `3${symbol}3`;
+}
+
+export function resolveVerticalParameters(
+  profile: ProblemProfile,
+  operation: VerticalOperation = 'addition',
+  modes: VerticalQuestionModes = {}
+): VerticalParameters {
   const max = profile.max;
   const factorMax = Math.min(9, profile.maxFactor);
   const complexTier = profile.carryRate >= .75;
+  const doubleRegrouping = max >= 1000 && complexTier;
   return {
     max,
     minOperand: max <= 20 ? 2 : max <= 100 ? 10 : Math.max(10, Math.floor(max / 10)),
@@ -69,8 +109,13 @@ export function resolveVerticalParameters(profile: ProblemProfile): VerticalPara
     factorMax,
     maxDividend: max,
     minQuotient: Math.max(10, Math.min(20, Math.round(max / 20))),
-    doubleRegrouping: max >= 1000 && complexTier,
-    complexTier
+    doubleRegrouping,
+    complexTier,
+    digitPattern: digitPatternFor(operation, max, modes),
+    regroupingTarget: { min: doubleRegrouping ? 2 : 1, consecutive: profile.carryRate >= .9 },
+    remainderPolicy: modes.division === 'exact' ? 'exact' : modes.division === 'remainder' ? 'remainder' : 'mixed',
+    zeroQuotientRate: modes.division === 'zeroQuotient' ? 1 : 0,
+    acrossZeroRate: modes.subtraction === 'acrossZero' ? 1 : 0
   };
 }
 
@@ -91,10 +136,10 @@ function addSubFloor(params: VerticalParameters): number {
     : Math.ceil(params.max * params.magnitudeFloorFactor);
 }
 
-/** Regrouping target for one vertical slot: complex slots need at least the
- * profile's required count, simple slots need exactly zero regroupings. */
+/** Regrouping target for one vertical slot: complex slots take the resolved
+ * per-operation target, simple slots need exactly zero regroupings. */
 function regroupingTargetFor(params: VerticalParameters, complex: boolean): RegroupingTarget {
-  return complex ? { min: params.doubleRegrouping ? 2 : 1 } : { min: 0, max: 0 };
+  return complex ? params.regroupingTarget : { min: 0, max: 0 };
 }
 
 /**
@@ -315,13 +360,29 @@ function indicesOf(entries: PageEntry[], operation: VerticalOperation): number[]
   return entries.flatMap((entry, index) => entry.operation === operation ? [index] : []);
 }
 
-/** Remainder share for divisions: the division sub-mode overrides the profile rate. */
-function effectiveRemainderRate(config: WorksheetConfig, params: VerticalParameters): number {
-  return config.verticalDivisionMode === 'exact'
-    ? 0
-    : config.verticalDivisionMode === 'remainder'
-      ? 1
-      : params.remainderRate;
+/**
+ * Largest-remainder allocation of a quota across groups: each group gets
+ * floor(raw), and the leftover (rounded total minus floors) goes to the
+ * largest fractional remainders, ties broken by group order. The page total
+ * stays round(sum of raws) however the rates differ per operation.
+ */
+function distributeQuota(rawValues: readonly number[]): number[] {
+  const total = Math.round(rawValues.reduce((sum, value) => sum + value, 0));
+  const base = rawValues.map(Math.floor);
+  let remaining = total - base.reduce((sum, value) => sum + value, 0);
+  const order = rawValues
+    .map((value, index) => ({ index, remainder: value - base[index] }))
+    .sort((left, right) => right.remainder - left.remainder || left.index - right.index);
+  for (const item of order) {
+    if (remaining-- <= 0) break;
+    base[item.index]++;
+  }
+  return base;
+}
+
+/** Remainder share for divisions: the resolved remainder policy overrides the profile rate. */
+function effectiveRemainderRate(params: VerticalParameters): number {
+  return params.remainderPolicy === 'exact' ? 0 : params.remainderPolicy === 'remainder' ? 1 : params.remainderRate;
 }
 
 interface PageQuota {
@@ -330,35 +391,38 @@ interface PageQuota {
   field: 'complex' | 'remainder';
 }
 
-function buildPageEntries(config: WorksheetConfig, params: VerticalParameters, random: RandomSource): PageEntry[] {
+type VerticalParamsFor = (operation: VerticalOperation) => VerticalParameters;
+
+function buildPageEntries(
+  config: WorksheetConfig,
+  paramsFor: VerticalParamsFor,
+  random: RandomSource
+): PageEntry[] {
   const entries = pageOperations(config.verticalOperations, config.randomMix, random).map(operation => ({ operation }));
   const quotas: PageQuota[] = [];
-  if (config.practiceMode === 'verticalAddSub') {
-    const requested = params.complexPerPage;
-    if (config.verticalOperations.length === 1) {
-      quotas.push({ indices: entries.map((_, index) => index), requested, field: 'complex' });
-    } else {
-      const [firstOperation, secondOperation] = random() < .5 ? config.verticalOperations : [...config.verticalOperations].reverse();
-      quotas.push(
-        { indices: indicesOf(entries, firstOperation), requested: Math.ceil(requested / 2), field: 'complex' },
-        { indices: indicesOf(entries, secondOperation), requested: Math.floor(requested / 2), field: 'complex' }
-      );
-    }
-  } else {
-    const complexIndices = config.practiceMode === 'verticalMulDiv'
-      ? indicesOf(entries, 'multiplication')
-      : entries.flatMap((entry, index) => entry.operation !== 'division' ? [index] : []);
-    const divisionIndices = indicesOf(entries, 'division');
-    quotas.push(
-      { indices: complexIndices, requested: Math.round(complexIndices.length * params.complexPerPage / VERTICAL_PAGE_SIZE), field: 'complex' },
-      { indices: divisionIndices, requested: Math.round(divisionIndices.length * effectiveRemainderRate(config, params)), field: 'remainder' }
-    );
+  // Complex quotas are per operation: each operation's group draws from its
+  // own resolved complex rate, and the page total follows largest remainder.
+  const complexOperations = config.verticalOperations.filter(operation => operation !== 'division');
+  const complexGroups = complexOperations.map(operation => indicesOf(entries, operation));
+  const complexQuotas = distributeQuota(complexGroups.map((indices, index) =>
+    indices.length * paramsFor(complexOperations[index]).complexPerPage / VERTICAL_PAGE_SIZE));
+  complexGroups.forEach((indices, index) => {
+    quotas.push({ indices, requested: complexQuotas[index], field: 'complex' });
+  });
+  const divisionIndices = indicesOf(entries, 'division');
+  if (divisionIndices.length) {
+    quotas.push({
+      indices: divisionIndices,
+      requested: Math.round(divisionIndices.length * effectiveRemainderRate(paramsFor('division'))),
+      field: 'remainder'
+    });
   }
   for (const quota of quotas) markQuota(entries, quota.indices, quota.requested, quota.field, random);
   return entries;
 }
 
-function generateOne(params: VerticalParameters, entry: PageEntry, config: WorksheetConfig, random: RandomSource): Question {
+function generateOne(paramsFor: VerticalParamsFor, entry: PageEntry, config: WorksheetConfig, random: RandomSource): Question {
+  const params = paramsFor(entry.operation);
   const target = regroupingTargetFor(params, Boolean(entry.complex));
   if (entry.operation === 'addition') return generateVerticalAddition(params, target, random);
   if (entry.operation === 'subtraction') return generateVerticalSubtraction(params, target, random, config.verticalSubtractionMode);
@@ -373,6 +437,13 @@ export interface VerticalQuestionModes {
   division?: VerticalDivisionMode;
 }
 
+function operationForType(type: Question['type']): VerticalOperation {
+  if (type === 'verticalSubtraction') return 'subtraction';
+  if (type === 'verticalMultiplication') return 'multiplication';
+  if (type === 'verticalDivision') return 'division';
+  return 'addition';
+}
+
 /** Generate exactly one vertical question for registry handlers. */
 export function generateVerticalQuestion(
   type: Question['type'],
@@ -380,7 +451,7 @@ export function generateVerticalQuestion(
   random: RandomSource = Math.random,
   modes: VerticalQuestionModes = {}
 ): Question {
-  const params = resolveVerticalParameters(profile);
+  const params = resolveVerticalParameters(profile, operationForType(type), modes);
   const target = regroupingTargetFor(params, params.complexTier);
   if (type === 'verticalAddition') return generateVerticalAddition(params, target, random);
   if (type === 'verticalSubtraction') return generateVerticalSubtraction(params, target, random, modes.subtraction);
@@ -388,18 +459,38 @@ export function generateVerticalQuestion(
   return generateVerticalDivision(params, params.complexTier, random, modes.division);
 }
 
-export function generateVerticalQuestions(config: WorksheetConfig, profile: ProblemProfile, random: RandomSource = Math.random): Question[] {
-  const params = resolveVerticalParameters(profile);
+/** Resolved profiles for vertical generation: one shared profile, or one per operation. */
+export type VerticalProfiles = ProblemProfile | Record<VerticalOperation, ProblemProfile>;
+
+function isPerOperationProfiles(profiles: VerticalProfiles): profiles is Record<VerticalOperation, ProblemProfile> {
+  return !('max' in profiles);
+}
+
+export function generateVerticalQuestions(config: WorksheetConfig, profiles: VerticalProfiles, random: RandomSource = Math.random): Question[] {
+  const modes: VerticalQuestionModes = {
+    subtraction: config.verticalSubtractionMode,
+    multiplication: config.verticalMultiplicationMode,
+    division: config.verticalDivisionMode
+  };
+  const paramsCache = new Map<VerticalOperation, VerticalParameters>();
+  const paramsFor: VerticalParamsFor = operation => {
+    const cached = paramsCache.get(operation);
+    if (cached) return cached;
+    const profile = isPerOperationProfiles(profiles) ? profiles[operation] : profiles;
+    const resolved = resolveVerticalParameters(profile, operation, modes);
+    paramsCache.set(operation, resolved);
+    return resolved;
+  };
   const questions: Question[] = [];
   const signatures = new Set<string>();
   for (let page = 0; page < config.verticalPages; page++) {
-    for (const entry of buildPageEntries(config, params, random)) {
+    for (const entry of buildPageEntries(config, paramsFor, random)) {
       let question: Question | undefined;
       // Sampler exhaustion is handled inside the generators (fallback chain,
       // then a loud error), so this loop only retries on duplicates: a null
       // sampler result never consumes the dedup budget.
       for (let attempt = 0; attempt < 4000; attempt++) {
-        const candidate = generateOne(params, entry, config, random);
+        const candidate = generateOne(paramsFor, entry, config, random);
         if (config.allowDuplicates || !signatures.has(candidate.signature)) {
           question = candidate;
           break;

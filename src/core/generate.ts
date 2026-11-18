@@ -217,14 +217,19 @@ export function generateWorksheet(input: WorksheetConfig, options: GenerateWorks
   if (!check.valid) throw new Error(check.errors.join('；'));
 
   if (config.practiceMode !== 'standard') {
-    // All four vertical types share difficultyProfiles(1000), so the first
-    // operation's resolved profile stands for the whole vertical worksheet.
+    // Each operation resolves its own profile, so per-operation difficulty
+    // tuning in the registry takes effect independently (the four vertical
+    // types currently share template values, but resolve separately).
     const verticalType: Record<VerticalOperation, ProblemType> = {
       addition: 'verticalAddition', subtraction: 'verticalSubtraction',
       multiplication: 'verticalMultiplication', division: 'verticalDivision'
     };
-    const profile = getProblemProfile(verticalType[config.verticalOperations[0]], config.difficulty, config.stage, config.rangeMode);
-    const questions = generateVerticalQuestions(config, profile, attachCreateId(random, () => '')).map(question => ({ ...question, id: context.createId() }));
+    const operations: VerticalOperation[] = ['addition', 'subtraction', 'multiplication', 'division'];
+    const profiles = Object.fromEntries(operations.map(operation => [
+      operation,
+      getProblemProfile(verticalType[operation], config.difficulty, config.stage, config.rangeMode)
+    ])) as Record<VerticalOperation, ProblemProfile>;
+    const questions = generateVerticalQuestions(config, profiles, attachCreateId(random, () => '')).map(question => ({ ...question, id: context.createId() }));
     for (const question of questions) {
       const validation = validateQuestion(question, config);
       if (!validation.valid) throw new Error(validation.errors.join('；'));

@@ -18,7 +18,8 @@ import {
   type RegroupingTarget
 } from '../src/core/generators/sampling';
 import { generateWorksheet } from '../src/core/generate';
-import { generateVerticalQuestion, generateVerticalQuestions } from '../src/core/generators/vertical';
+import { generateVerticalQuestion, generateVerticalQuestions, resolveVerticalParameters } from '../src/core/generators/vertical';
+import { normalizeStoredWorksheetConfig } from '../src/features/worksheet-builder/config';
 import type { ProblemProfile } from '../src/domain/questions/model';
 import type { WorksheetConfig } from '../src/domain/worksheet/config';
 
@@ -389,5 +390,123 @@ describe('step 2: sampler-based vertical generation', () => {
     expect(all.every(q => Number(q.metadata?.regroupingCount) >= 2)).toBe(true);
     const none = generateVerticalQuestions(worksheetBase, profile({ carryRate: 0 }), createGenerationContext('step2-no-complex').random);
     expect(none.every(q => Number(q.metadata?.regroupingCount) === 0)).toBe(true);
+  });
+});
+
+describe('step 3: per-operation difficulty profiles', () => {
+  it('resolves different digit patterns per operation from the same profile', () => {
+    const standard = profile({});
+    expect(resolveVerticalParameters(standard, 'addition').digitPattern).toBe('3+3');
+    expect(resolveVerticalParameters(standard, 'subtraction').digitPattern).toBe('3-3');
+    expect(resolveVerticalParameters(standard, 'multiplication').digitPattern).toBe('2×1');
+    expect(resolveVerticalParameters(standard, 'division').digitPattern).toBe('3÷1');
+    const small = profile({ max: 100 });
+    expect(resolveVerticalParameters(small, 'addition').digitPattern).toBe('2+2');
+    expect(resolveVerticalParameters(small, 'subtraction').digitPattern).toBe('2-2');
+    const tiny = profile({ max: 20 });
+    expect(resolveVerticalParameters(tiny, 'addition').digitPattern).toBe('2位数以内');
+  });
+
+  it('maps sub-modes onto the resolved fields', () => {
+    const baseProfile = profile({});
+    expect(resolveVerticalParameters(baseProfile, 'division', { division: 'exact' }).remainderPolicy).toBe('exact');
+    expect(resolveVerticalParameters(baseProfile, 'division', { division: 'remainder' }).remainderPolicy).toBe('remainder');
+    expect(resolveVerticalParameters(baseProfile, 'division', { division: 'mixed' }).remainderPolicy).toBe('mixed');
+    expect(resolveVerticalParameters(baseProfile, 'division', { division: 'zeroQuotient' }).zeroQuotientRate).toBe(1);
+    expect(resolveVerticalParameters(baseProfile, 'division', { division: 'mixed' }).zeroQuotientRate).toBe(0);
+    expect(resolveVerticalParameters(baseProfile, 'subtraction', { subtraction: 'acrossZero' }).acrossZeroRate).toBe(1);
+    expect(resolveVerticalParameters(baseProfile, 'subtraction', { subtraction: 'mixed' }).acrossZeroRate).toBe(0);
+    expect(resolveVerticalParameters(baseProfile, 'multiplication', { multiplication: 'threeByOne' }).digitPattern).toBe('3×1');
+    expect(resolveVerticalParameters(baseProfile, 'multiplication', { multiplication: 'twoByTwo' }).digitPattern).toBe('2×2');
+    expect(resolveVerticalParameters(baseProfile, 'division', { division: 'twoDigitDivisor' }).digitPattern).toBe('3÷2');
+  });
+
+  it('demands consecutive regroupings only at the challenge tier', () => {
+    expect(resolveVerticalParameters(profile({ carryRate: .5 }), 'addition').regroupingTarget).toEqual({ min: 1, consecutive: false });
+    expect(resolveVerticalParameters(profile({ carryRate: .75 }), 'addition').regroupingTarget).toEqual({ min: 2, consecutive: false });
+    expect(resolveVerticalParameters(profile({ carryRate: .9 }), 'addition').regroupingTarget).toEqual({ min: 2, consecutive: true });
+    expect(resolveVerticalParameters(profile({ carryRate: .9, max: 100 }), 'addition').regroupingTarget).toEqual({ min: 1, consecutive: true });
+  });
+
+  it('bounds each operation by its own profile in a per-operation record', () => {
+    const questions = generateVerticalQuestions(
+      { ...worksheetBase, practiceMode: 'verticalAll', verticalOperations: ['addition', 'subtraction', 'multiplication', 'division'] },
+      {
+        addition: profile({ max: 60, carryRate: .5, highRangeRate: .5 }),
+        subtraction: profile({ max: 60, carryRate: .5, highRangeRate: .5 }),
+        multiplication: profile({ max: 1000, carryRate: .5, highRangeRate: .5 }),
+        division: profile({ max: 200, carryRate: .5, highRangeRate: .5 })
+      },
+      createGenerationContext('step3-per-op-bounds').random
+    );
+    expect(questions).toHaveLength(8);
+    for (const question of questions) {
+      if (question.type === 'verticalAddition') expect(Number(question.answer)).toBeLessThanOrEqual(60);
+      if (question.type === 'verticalSubtraction') expect(question.operands[0]).toBeLessThanOrEqual(60);
+      if (question.type === 'verticalDivision') expect(question.operands[0]).toBeLessThanOrEqual(200);
+    }
+  });
+
+  it('drives complex quotas from each operation\'s own carry rate', () => {
+    const questions = generateVerticalQuestions(
+      worksheetBase,
+      {
+        addition: profile({ carryRate: 1 }),
+        subtraction: profile({ carryRate: 0 }),
+        multiplication: profile({ carryRate: .5 }),
+        division: profile({ carryRate: .5 })
+      },
+      createGenerationContext('step3-per-op-quota').random
+    );
+    expect(questions.filter(q => q.type === 'verticalAddition').every(q => q.metadata?.regrouping === true)).toBe(true);
+    expect(questions.filter(q => q.type === 'verticalSubtraction').every(q => q.metadata?.regrouping === false)).toBe(true);
+  });
+
+  it('generates consecutive regroupings on complex challenge slots', () => {
+    const questions = generateVerticalQuestions(
+      { ...worksheetBase, practiceMode: 'verticalAddSub', verticalOperations: ['addition', 'subtraction'] },
+      profile({ carryRate: .9, highRangeRate: .85 }),
+      createGenerationContext('step3-consecutive').random
+    );
+    const complex = questions.filter(q => q.metadata?.regrouping === true);
+    expect(complex.length).toBeGreaterThan(0);
+    for (const question of complex) {
+      const [a, b] = question.operands;
+      const consecutive = question.type === 'verticalAddition'
+        ? hasConsecutiveAdditionRegrouping(a, b)
+        : hasConsecutiveSubtractionRegrouping(a, b);
+      expect(consecutive).toBe(true);
+    }
+  });
+});
+
+describe('step 3: saved-config compatibility', () => {
+  it('keeps the three sub-modes when loading a stored config', () => {
+    const loaded = normalizeStoredWorksheetConfig({
+      stage: 'grade3', rangeMode: 'curriculum', difficulty: 'standard',
+      practiceMode: 'verticalMulDiv', verticalOperations: ['multiplication', 'division'],
+      verticalDivisionMode: 'zeroQuotient',
+      verticalMultiplicationMode: 'twoByTwo',
+      verticalSubtractionMode: 'acrossZero'
+    });
+    expect(loaded.verticalDivisionMode).toBe('zeroQuotient');
+    expect(loaded.verticalMultiplicationMode).toBe('twoByTwo');
+    expect(loaded.verticalSubtractionMode).toBe('acrossZero');
+    const sheet = generateWorksheet({ ...loaded, verticalPages: 1 }, { seed: 'step3-stored-modes' });
+    expect(sheet.questions.every(q => String(q.metadata?.quotient ?? '').includes('0') || q.type === 'verticalMultiplication')).toBe(true);
+    expect(sheet.questions.filter(q => q.type === 'verticalMultiplication').every(q => q.operands[1] >= 11)).toBe(true);
+  });
+
+  it('drops unknown sub-mode values and tolerates configs without them', () => {
+    const loaded = normalizeStoredWorksheetConfig({
+      stage: 'grade3', rangeMode: 'curriculum', difficulty: 'standard',
+      practiceMode: 'verticalMulDiv', verticalOperations: ['multiplication', 'division'],
+      verticalDivisionMode: 'bogus', verticalMultiplicationMode: 42
+    });
+    expect(loaded.verticalDivisionMode).toBeUndefined();
+    expect(loaded.verticalMultiplicationMode).toBeUndefined();
+    expect(loaded.verticalSubtractionMode).toBeUndefined();
+    const sheet = generateWorksheet({ ...loaded, verticalPages: 1 }, { seed: 'step3-stored-defaults' });
+    expect(sheet.questions).toHaveLength(8);
   });
 });
